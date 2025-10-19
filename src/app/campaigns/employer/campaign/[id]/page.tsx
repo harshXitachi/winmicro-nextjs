@@ -445,7 +445,7 @@ export default function CampaignManagement() {
               <GroupChatComponent
                 campaignId={campaignId}
                 isAdmin={true}
-                currentUserId={user?.userId || user?.id || ''}
+                currentUserId={user?.id || ''}
                 members={members}
                 onMemberUpdate={fetchCampaignData}
               />
