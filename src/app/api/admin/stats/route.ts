@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
         revenueOverTime: revenueOverTime.map(r => ({
           month: r.month,
           year: r.year,
-          total: parseFloat(r.total || '0'),
+          total: typeof r.total === 'number' ? r.total : parseFloat(r.total || '0'),
         })),
         userGrowth: userGrowth.map(u => ({
           month: u.month,
