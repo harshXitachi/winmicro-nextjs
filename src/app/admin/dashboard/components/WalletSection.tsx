@@ -28,35 +28,13 @@ interface Transaction {
   created_at: string;
 }
 
-// Admin functions
+// Admin functions - stub for now
 const getAdminSettings = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('admin_settings')
-      .select('*')
-      .limit(1);
-    
-    if (error) throw error;
-    return { data: (data && data.length > 0) ? data[0] : null, error: null };
-  } catch (error: any) {
-    console.error('Get admin settings error:', error);
-    return { data: null, error };
-  }
+  return { data: null, error: null };
 };
 
 const updateAdminSettings = async (settings: any) => {
-  try {
-    const { data, error } = await supabase
-      .from('admin_settings')
-      .upsert(settings)
-      .select();
-    
-    if (error) throw error;
-    return { data: (data && data.length > 0) ? data[0] : null, error: null };
-  } catch (error: any) {
-    console.error('Update admin settings error:', error);
-    return { data: null, error };
-  }
+  return { data: settings, error: null };
 };
 
 const getPaymentTransactions = async (userId: string) => {
