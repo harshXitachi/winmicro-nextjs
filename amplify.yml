@@ -1,0 +1,26 @@
+version: 1
+backend:
+  phases:
+    build:
+      commands:
+        - npm ci --legacy-peer-deps
+        - npx ampx generate --outputs-out-dir amplify_outputs --clean
+    post_build:
+      commands:
+        - npx ampx pipeline-deploy --cicd
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci --legacy-peer-deps
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*
