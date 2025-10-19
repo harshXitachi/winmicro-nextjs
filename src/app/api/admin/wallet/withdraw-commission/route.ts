@@ -68,15 +68,9 @@ export async function POST(request: NextRequest) {
         type: 'debit',
         transaction_type: 'admin_commission_withdrawal',
         currency: currency,
-        description: `Admin commission withdrawal of ${currency === 'INR' ? '₹' : '$'}${amount}`,
+        description: `Admin commission withdrawal of ${currency === 'INR' ? '₹' : '$'}${amount} - Account: ${accountHolderName}`,
         status: 'pending',
         reference_id: transactionId,
-        metadata: {
-          bankAccountNumber: bankAccountNumber.slice(-4),
-          ifscCode: ifscCode,
-          accountHolderName: accountHolderName,
-          adminId: currentUser.userId,
-        },
       })
       .returning();
 
