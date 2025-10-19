@@ -51,14 +51,9 @@ export async function POST(request: NextRequest) {
         type: 'debit',
         transaction_type: 'withdrawal',
         currency: 'INR',
-        description: `Withdrawal of ₹${amount} to bank account`,
+        description: `Withdrawal of ₹${amount} - Account: ${accountHolderName} (${ifscCode})`,
         status: 'pending',
         reference_id: transactionId,
-        metadata: {
-          bankAccountNumber: bankAccountNumber.slice(-4), // Store only last 4 digits
-          ifscCode: ifscCode,
-          accountHolderName: accountHolderName,
-        },
       })
       .returning();
 
