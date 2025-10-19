@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 Login Debug Tool</h1>
+    
+    <div>
+        <h2>Step 1: Test Login</h2>
+        <button onclick="testLogin()">Login as Sarah</button>
+        <button onclick="testAdminLogin()">Login as Admin</button>
+    </div>
+
+    <div>
+        <h2>Step 2: Check Auth State</h2>
+        <button onclick="checkAuth()">Check Current User</button>
+        <button onclick="checkCookies()">Check Cookies</button>
+    </div>
+
+    <div>
+        <h2>Step 3: Test Redirect</h2>
+        <button onclick="goToDashboard()">Go to Dashboard</button>
+        <button onclick="goToAdmin()">Go to Admin</button>
+    </div>
+
+    <div>
+        <h2>Results:</h2>
+        <pre id="results">No tests run yet...</pre>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000';
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            results.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+        }
+
+        async function testLogin() {
+            log('🔐 Testing login as Sarah...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/signin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        email: 'sarah@example.com',
+                        password: 'password123'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('✅ Login successful!', 'success');
+                    log(JSON.stringify(data, null, 2));
+                } else {
+                    log('❌ Login failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                log('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        async function testAdminLogin() {
+            log('🔐 Testing login as Admin...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/signin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        email: 'admin@gmail.com',
+                        password: 'admin1'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log('✅ Admin login successful!', 'success');
+                    log(JSON.stringify(data, null, 2));
+                } else {
+                    log('❌ Login failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                log('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        async function checkAuth() {
+            log('🔍 Checking current user...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                log('Current user:', 'info');
+                log(JSON.stringify(data, null, 2));
+            } catch (error) {
+                log('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        function checkCookies() {
+            log('🍪 Checking cookies...', 'info');
+            log('document.cookie: ' + (document.cookie || '(empty)'));
+            log('Note: HTTP-only cookies (like auth_token) won\'t show here!', 'info');
+            log('Check DevTools → Application → Cookies to see all cookies', 'info');
+        }
+
+        function goToDashboard() {
+            log('🚀 Redirecting to dashboard...', 'info');
+            window.location.href = `${API_BASE}/dashboard`;
+        }
+
+        function goToAdmin() {
+            log('🚀 Redirecting to admin dashboard...', 'info');
+            window.location.href = `${API_BASE}/admin/dashboard`;
+        }
+
+        // Clear results on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🎯 Login Debug Tool Ready!', 'success');
+            log('Instructions:', 'info');
+            log('1. Click "Login as Sarah" or "Login as Admin"', 'info');
+            log('2. Check the results below', 'info');
+            log('3. Click "Check Current User" to verify', 'info');
+            log('4. Click "Go to Dashboard" to test redirect', 'info');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { db, users, profiles } from '@/lib/db';
+import { hashPassword, generateToken, setAuthCookie } from '@/lib/auth';
+import { eq } from 'drizzle-orm';
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { email, password, first_name, last_name } = body;
+
+    // Validation
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: 'Email and password are required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if user already exists
+    const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (existingUser.length > 0) {
+      return NextResponse.json(
+        { error: 'User already exists with this email' },
+        { status: 400 }
+      );
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    // Create user
+    const [newUser] = await db.insert(users).values({
+      email,
+      password: hashedPassword,
+      first_name: first_name || '',
+      last_name: last_name || '',
+      role: 'user',
+    }).returning();
+
+    // Create profile
+    const [newProfile] = await db.insert(profiles).values({
+      user_id: newUser.id,
+      username: `user${Date.now()}`,
+      wallet_balance: '0.00',
+      response_time: 'N/A',
+    }).returning();
+
+    // Generate JWT token
+    const token = await generateToken({
+      userId: newUser.id,
+      email: newUser.email,
+      role: newUser.role,
+    });
+
+    // Create response with cookie
+    const response = NextResponse.json({
+      success: true,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        first_name: newUser.first_name,
+        last_name: newUser.last_name,
+        role: newUser.role,
+        user_metadata: {
+          first_name: newUser.first_name,
+          last_name: newUser.last_name,
+          role: newUser.role,
+        },
+        created_at: newUser.created_at,
+      },
+      profile: newProfile,
+    });
+
+    const cookie = setAuthCookie(token);
+    response.cookies.set(cookie);
+
+    return response;
+  } catch (error: any) {
+    console.error('Signup error:', error);
+    return NextResponse.json(
+      { error: 'Failed to create account', details: error?.message || String(error) },
+      { status: 500 }
+    );
+  }
+}

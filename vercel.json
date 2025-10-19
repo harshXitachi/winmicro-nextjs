@@ -1,0 +1,26 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "nodeVersion": "20.x",
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "JWT_SECRET": "@jwt_secret",
+    "PHONEPE_MERCHANT_ID": "@phonepe_merchant_id",
+    "PHONEPE_SECRET_KEY": "@phonepe_secret_key",
+    "PHONEPE_BASE_URL": "@phonepe_base_url",
+    "PHONEPE_KEY_INDEX": "@phonepe_key_index",
+    "PAYPAL_CLIENT_ID": "@paypal_client_id",
+    "PAYPAL_SECRET": "@paypal_secret",
+    "PAYPAL_API_BASE": "@paypal_api_base",
+    "PAYPAL_MODE": "@paypal_mode",
+    "NEXT_PUBLIC_APP_URL": "@next_public_app_url",
+    "NEXT_PUBLIC_API_URL": "@next_public_api_url"
+  },
+  "functions": {
+    "src/app/api/**": {
+      "maxDuration": 60
+    }
+  }
+}

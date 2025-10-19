@@ -1,0 +1,752 @@
+
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../../hooks/useAuth';
+import { getWalletTransactions, createWalletTransaction, updateWalletBalance } from '../../../lib/supabase';
+import { useDarkMode } from '../page';
+
+interface Transaction {
+  id: string;
+  amount: number;
+  type: 'credit' | 'debit';
+  description: string;
+  created_at: string;
+  currency: 'INR' | 'USD';
+  gateway: 'phonepay' | 'paypal';
+}
+
+export default function WalletSection() {
+  const { user, profile, refreshProfile } = useAuth();
+  const { isDarkMode } = useDarkMode();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState<'INR' | 'USD'>('INR');
+  const [processing, setProcessing] = useState(false);
+
+  // PhonePay credentials
+  const PHONEPE_MERCHANT_ID = 'M22AFUJH1IZRR';
+  const PHONEPE_KEY_INDEX = '1';
+  const PHONEPE_SECRET_KEY = 'c7199d0e-5854-41f5-9604-3ae51eb8b3d1';
+
+  // PayPal credentials
+  const PAYPAL_CLIENT_ID = 'AZCRRRbyB5ZsN3gOeQ3VzXAQ9z_XGkQBIBXiV7j-50_l5EkBaHDZMrc6C8uYaHJF6xTddfITdfau00zE';
+  const PAYPAL_SECRET_KEY = 'EElmez_2nNLl8SohHumQZsTTIv3_Lk3OwVagVvjesSYVsqr_2uGebrPB5WeTbWD-Kf9cWR7FsFUdn-sm';
+
+  useEffect(() => {
+    if (user) {
+      loadTransactions();
+    }
+  }, [user]);
+
+  const loadTransactions = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await getWalletTransactions(user.id);
+      if (!error && data) {
+        setTransactions(data);
+      }
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const convertCurrency = (amount: number, fromCurrency: 'INR' | 'USD', toCurrency: 'INR' | 'USD') => {
+    if (fromCurrency === toCurrency) return amount;
+    
+    // Simple conversion rates (in real app, use live rates)
+    const USD_TO_INR = 83.50;
+    
+    if (fromCurrency === 'USD' && toCurrency === 'INR') {
+      return amount * USD_TO_INR;
+    } else if (fromCurrency === 'INR' && toCurrency === 'USD') {
+      return amount / USD_TO_INR;
+    }
+    
+    return amount;
+  };
+
+  const formatCurrency = (amount: number, currency: 'INR' | 'USD') => {
+    if (currency === 'INR') {
+      return `₹${amount.toLocaleString('en-IN')}`;
+    } else {
+      return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    }
+  };
+
+  const processPhonePePayment = async (amount: number) => {
+    // Simulate PhonePe payment processing
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          success: true,
+          transactionId: 'PP' + Date.now(),
+          message: 'Payment successful via PhonePe'
+        });
+      }, 2000);
+    });
+  };
+
+  const processPayPalPayment = async (amount: number) => {
+    // Simulate PayPal payment processing
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          success: true,
+          transactionId: 'PL' + Date.now(),
+          message: 'Payment successful via PayPal'
+        });
+      }, 2000);
+    });
+  };
+
+  const handleDeposit = async () => {
+    if (!user || !amount || processing) return;
+    
+    setProcessing(true);
+    try {
+      const depositAmount = parseFloat(amount);
+      const commission = depositAmount * 0.05; // 5% commission
+      const finalAmount = depositAmount - commission;
+      
+      // Convert to INR for wallet storage (base currency)
+      const finalAmountINR = currency === 'USD' ? convertCurrency(finalAmount, 'USD', 'INR') : finalAmount;
+      
+      let paymentResult;
+      let gateway: 'phonepay' | 'paypal';
+      
+      if (currency === 'INR') {
+        gateway = 'phonepay';
+        paymentResult = await processPhonePePayment(depositAmount);
+      } else {
+        gateway = 'paypal';
+        paymentResult = await processPayPalPayment(depositAmount);
+      }
+      
+      if (paymentResult.success) {
+        // Update wallet balance
+        await updateWalletBalance(user.id, finalAmountINR, 'credit');
+        
+        // Create transaction record
+        const { error } = await createWalletTransaction({
+          user_id: user.id,
+          amount: finalAmountINR,
+          type: 'credit',
+          currency: currency,
+          gateway: gateway,
+          description: `Deposit via ${gateway === 'phonepay' ? 'PhonePe' : 'PayPal'} (${formatCurrency(depositAmount, currency)} - ${formatCurrency(currency === 'USD' ? convertCurrency(commission, 'USD', 'INR') : commission, 'INR')} commission)`
+        });
+        
+        if (!error) {
+          await refreshProfile();
+          await loadTransactions();
+          setShowDepositModal(false);
+          setAmount('');
+          alert(`Deposit successful! ${formatCurrency(finalAmountINR, 'INR')} has been added to your wallet.`);
+        } else {
+          alert('Failed to record transaction. Please contact support.');
+        }
+      } else {
+        alert('Payment failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error processing deposit:', error);
+      alert('Failed to process deposit. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!user || !amount || processing) return;
+    
+    const withdrawAmount = parseFloat(amount);
+    const currentBalance = profile?.wallet_balance || 0;
+    
+    // Convert withdrawal amount to INR for comparison
+    const withdrawAmountINR = currency === 'USD' ? convertCurrency(withdrawAmount, 'USD', 'INR') : withdrawAmount;
+    
+    if (withdrawAmountINR > currentBalance) {
+      alert('Insufficient balance for withdrawal.');
+      return;
+    }
+    
+    setProcessing(true);
+    try {
+      // Update wallet balance
+      await updateWalletBalance(user.id, withdrawAmountINR, 'debit');
+      
+      const { error } = await createWalletTransaction({
+        user_id: user.id,
+        amount: withdrawAmountINR,
+        type: 'debit',
+        currency: currency,
+        gateway: currency === 'INR' ? 'phonepay' : 'paypal',
+        description: `Withdrawal to ${currency === 'INR' ? 'bank account (PhonePe)' : 'PayPal account'} - ${formatCurrency(withdrawAmount, currency)}`
+      });
+      
+      if (!error) {
+        await refreshProfile();
+        await loadTransactions();
+        setShowWithdrawModal(false);
+        setAmount('');
+        alert('Withdrawal request submitted successfully!');
+      } else {
+        alert('Failed to process withdrawal. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error processing withdrawal:', error);
+      alert('Failed to process withdrawal. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getWalletBalanceInCurrency = (currency: 'INR' | 'USD') => {
+    const balanceINR = profile?.wallet_balance || 0;
+    if (currency === 'USD') {
+      return convertCurrency(balanceINR, 'INR', 'USD');
+    }
+    return balanceINR;
+  };
+
+  return (
+    <div className="p-8 space-y-8">
+      {/* Multi-Currency Wallet Overview */}
+      <div className={`rounded-3xl p-8 shadow-xl border ${
+        isDarkMode 
+          ? 'bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700' 
+          : 'bg-gradient-to-br from-slate-800 to-slate-900 border-gray-200'
+      }`}>
+        <div className="text-center text-white">
+          <h2 className="text-3xl font-bold mb-6">Multi-Currency Wallet</h2>
+          
+          {/* Currency Toggle */}
+          <div className="flex justify-center mb-6">
+            <div className="bg-white/10 rounded-2xl p-2 flex space-x-2">
+              <button
+                onClick={() => setCurrency('INR')}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 cursor-pointer ${
+                  currency === 'INR'
+                    ? 'bg-white text-slate-800 shadow-lg'
+                    : 'text-white/70 hover:text-white'
+                }`}
+              >
+                🇮🇳 INR
+              </button>
+              <button
+                onClick={() => setCurrency('USD')}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 cursor-pointer ${
+                  currency === 'USD'
+                    ? 'bg-white text-slate-800 shadow-lg'
+                    : 'text-white/70 hover:text-white'
+                }`}
+              >
+                🇺🇸 USD
+              </button>
+            </div>
+          </div>
+          
+          <div className="text-6xl font-bold mb-6">
+            {formatCurrency(getWalletBalanceInCurrency(currency), currency)}
+          </div>
+          
+          {currency === 'USD' && (
+            <p className="text-white/70 mb-6">
+              ≈ {formatCurrency(profile?.wallet_balance || 0, 'INR')} (Base Currency)
+            </p>
+          )}
+          
+          <div className="flex justify-center space-x-4">
+            <button
+              onClick={() => setShowDepositModal(true)}
+              className="px-8 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors shadow-lg whitespace-nowrap cursor-pointer flex items-center space-x-2"
+            >
+              <i className="ri-add-line"></i>
+              <span>Deposit {currency}</span>
+            </button>
+            <button
+              onClick={() => setShowWithdrawModal(true)}
+              className="px-8 py-3 bg-white text-slate-800 rounded-xl font-semibold hover:bg-gray-100 transition-colors shadow-lg whitespace-nowrap cursor-pointer flex items-center space-x-2"
+            >
+              <i className="ri-subtract-line"></i>
+              <span>Withdraw {currency}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className={`rounded-2xl p-6 shadow-lg border ${
+          isDarkMode 
+            ? 'bg-slate-800 border-slate-700' 
+            : 'bg-white border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`text-sm font-medium ${
+                isDarkMode ? 'text-slate-400' : 'text-gray-600'
+              }`}>Total Earned (INR)</p>
+              <p className={`text-2xl font-bold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
+                ₹{transactions.filter(t => t.type === 'credit').reduce((sum, t) => sum + t.amount, 0).toLocaleString('en-IN')}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+              <i className="ri-arrow-up-line text-2xl text-green-600"></i>
+            </div>
+          </div>
+        </div>
+
+        <div className={`rounded-2xl p-6 shadow-lg border ${
+          isDarkMode 
+            ? 'bg-slate-800 border-slate-700' 
+            : 'bg-white border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`text-sm font-medium ${
+                isDarkMode ? 'text-slate-400' : 'text-gray-600'
+              }`}>Total Spent (INR)</p>
+              <p className={`text-2xl font-bold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
+                ₹{transactions.filter(t => t.type === 'debit').reduce((sum, t) => sum + t.amount, 0).toLocaleString('en-IN')}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+              <i className="ri-arrow-down-line text-2xl text-red-600"></i>
+            </div>
+          </div>
+        </div>
+
+        <div className={`rounded-2xl p-6 shadow-lg border ${
+          isDarkMode 
+            ? 'bg-slate-800 border-slate-700' 
+            : 'bg-white border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`text-sm font-medium ${
+                isDarkMode ? 'text-slate-400' : 'text-gray-600'
+              }`}>USD Balance</p>
+              <p className={`text-2xl font-bold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
+                ${getWalletBalanceInCurrency('USD').toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+              <i className="ri-exchange-dollar-line text-2xl text-blue-600"></i>
+            </div>
+          </div>
+        </div>
+
+        <div className={`rounded-2xl p-6 shadow-lg border ${
+          isDarkMode 
+            ? 'bg-slate-800 border-slate-700' 
+            : 'bg-white border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`text-sm font-medium ${
+                isDarkMode ? 'text-slate-400' : 'text-gray-600'
+              }`}>Transactions</p>
+              <p className={`text-2xl font-bold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{transactions.length}</p>
+            </div>
+            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+              <i className="ri-exchange-line text-2xl text-indigo-600"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced Transaction History */}
+      <div className={`rounded-2xl p-6 shadow-lg border ${
+        isDarkMode 
+          ? 'bg-slate-800 border-slate-700' 
+          : 'bg-white border-gray-200'
+      }`}>
+        <h3 className={`text-xl font-bold mb-6 ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>Transaction History</h3>
+        
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className={isDarkMode ? 'text-slate-400' : 'text-gray-600'}>Loading transactions...</p>
+          </div>
+        ) : transactions.length === 0 ? (
+          <div className="text-center py-8">
+            <i className={`ri-wallet-line text-6xl mb-4 ${
+              isDarkMode ? 'text-slate-600' : 'text-gray-300'
+            }`}></i>
+            <h4 className={`text-lg font-semibold mb-2 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>No transactions yet</h4>
+            <p className={isDarkMode ? 'text-slate-400' : 'text-gray-600'}>
+              Your transaction history will appear here
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {transactions.map((transaction) => (
+              <div key={transaction.id} className={`flex items-center justify-between p-4 rounded-xl border ${
+                isDarkMode 
+                  ? 'border-slate-700 hover:bg-slate-700/50' 
+                  : 'border-gray-100 hover:bg-gray-50'
+              } transition-colors`}>
+                <div className="flex items-center space-x-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                    transaction.type === 'credit' 
+                      ? 'bg-green-100 text-green-600' 
+                      : 'bg-red-100 text-red-600'
+                  }`}>
+                    <i className={`text-xl ${
+                      transaction.type === 'credit' 
+                        ? 'ri-arrow-down-line' 
+                        : 'ri-arrow-up-line'
+                    }`}></i>
+                  </div>
+                  <div>
+                    <h4 className={`font-semibold ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>
+                      {transaction.type === 'credit' ? 'Money Received' : 'Money Sent'}
+                    </h4>
+                    <p className={`text-sm ${
+                      isDarkMode ? 'text-slate-400' : 'text-gray-600'
+                    }`}>{transaction.description}</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        transaction.gateway === 'phonepay'
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {transaction.gateway === 'phonepay' ? '📱 PhonePe' : '💳 PayPal'}
+                      </span>
+                      <span className={`text-xs ${
+                        isDarkMode ? 'text-slate-500' : 'text-gray-500'
+                      }`}>{formatDate(transaction.created_at)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-lg font-bold ${
+                    transaction.type === 'credit' 
+                      ? 'text-green-600' 
+                      : 'text-red-600'
+                  }`}>
+                    {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount.toLocaleString('en-IN')}
+                  </p>
+                  {transaction.currency && (
+                    <p className={`text-xs ${
+                      isDarkMode ? 'text-slate-400' : 'text-gray-500'
+                    }`}>
+                      Original: {transaction.currency}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Enhanced Deposit Modal */}
+      {showDepositModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`rounded-3xl p-8 w-full max-w-md shadow-2xl ${
+            isDarkMode ? 'bg-slate-800' : 'bg-white'
+          }`}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className={`text-2xl font-bold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Deposit Money</h3>
+              <button
+                onClick={() => setShowDepositModal(false)}
+                className={`p-2 rounded-full transition-colors ${
+                  isDarkMode ? 'text-slate-400 hover:text-slate-300 hover:bg-slate-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                } cursor-pointer`}
+              >
+                <i className="ri-close-line text-xl"></i>
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Currency Selection */}
+              <div>
+                <label className={`block text-sm font-semibold mb-3 ${
+                  isDarkMode ? 'text-slate-300' : 'text-gray-700'
+                }`}>Select Currency</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setCurrency('INR')}
+                    className={`p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
+                      currency === 'INR'
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : isDarkMode
+                        ? 'border-slate-600 bg-slate-700 text-slate-300 hover:border-slate-500'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="text-2xl mb-1">🇮🇳</div>
+                      <div className="font-semibold">INR</div>
+                      <div className="text-xs opacity-70">PhonePe</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setCurrency('USD')}
+                    className={`p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
+                      currency === 'USD'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : isDarkMode
+                        ? 'border-slate-600 bg-slate-700 text-slate-300 hover:border-slate-500'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="text-2xl mb-1">🇺🇸</div>
+                      <div className="font-semibold">USD</div>
+                      <div className="text-xs opacity-70">PayPal</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className={`block text-sm font-semibold mb-3 ${
+                  isDarkMode ? 'text-slate-300' : 'text-gray-700'
+                }`}>Amount ({currency})</label>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className={`w-full px-4 py-4 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-lg ${
+                    isDarkMode 
+                      ? 'bg-slate-700 border-slate-600 text-white' 
+                      : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                  placeholder={`Enter amount in ${currency}`}
+                  min={currency === 'INR' ? '100' : '2'}
+                />
+              </div>
+              
+              {amount && (
+                <div className={`p-4 rounded-xl ${
+                  isDarkMode ? 'bg-slate-700' : 'bg-gray-50'
+                }`}>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className={isDarkMode ? 'text-slate-400' : 'text-gray-600'}>Amount:</span>
+                      <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatCurrency(parseFloat(amount || '0'), currency)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={isDarkMode ? 'text-slate-400' : 'text-gray-600'}>Commission (5%):</span>
+                      <span className="text-red-600">-{formatCurrency(parseFloat(amount || '0') * 0.05, currency)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={isDarkMode ? 'text-slate-400' : 'text-gray-600'}>Gateway:</span>
+                      <span className={`font-semibold ${
+                        currency === 'INR' ? 'text-purple-600' : 'text-blue-600'
+                      }`}>
+                        {currency === 'INR' ? '📱 PhonePe' : '💳 PayPal'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-semibold pt-2 border-t border-gray-300">
+                      <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>You'll receive:</span>
+                      <span className="text-green-600">
+                        ₹{(currency === 'USD' 
+                          ? convertCurrency(parseFloat(amount || '0') * 0.95, 'USD', 'INR')
+                          : parseFloat(amount || '0') * 0.95
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex space-x-4 mt-8">
+              <button
+                onClick={() => setShowDepositModal(false)}
+                className={`flex-1 py-4 px-6 border rounded-xl font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+                  isDarkMode 
+                    ? 'border-slate-600 text-slate-300 hover:bg-slate-700' 
+                    : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeposit}
+                disabled={!amount || processing}
+                className="flex-1 py-4 px-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 whitespace-nowrap cursor-pointer"
+              >
+                {processing ? (
+                  <div className="flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                    Processing...
+                  </div>
+                ) : (
+                  `Deposit via ${currency === 'INR' ? 'PhonePe' : 'PayPal'}`
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enhanced Withdraw Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`rounded-3xl p-8 w-full max-w-md shadow-2xl ${
+            isDarkMode ? 'bg-slate-800' : 'bg-white'
+          }`}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className={`text-2xl font-bold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Withdraw Money</h3>
+              <button
+                onClick={() => setShowWithdrawModal(false)}
+                className={`p-2 rounded-full transition-colors ${
+                  isDarkMode ? 'text-slate-400 hover:text-slate-300 hover:bg-slate-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                } cursor-pointer`}
+              >
+                <i className="ri-close-line text-xl"></i>
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Currency Selection */}
+              <div>
+                <label className={`block text-sm font-semibold mb-3 ${
+                  isDarkMode ? 'text-slate-300' : 'text-gray-700'
+                }`}>Select Currency</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setCurrency('INR')}
+                    className={`p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
+                      currency === 'INR'
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : isDarkMode
+                        ? 'border-slate-600 bg-slate-700 text-slate-300 hover:border-slate-500'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="text-2xl mb-1">🇮🇳</div>
+                      <div className="font-semibold">INR</div>
+                      <div className="text-xs opacity-70">Bank Account</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setCurrency('USD')}
+                    className={`p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
+                      currency === 'USD'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : isDarkMode
+                        ? 'border-slate-600 bg-slate-700 text-slate-300 hover:border-slate-500'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="text-2xl mb-1">🇺🇸</div>
+                      <div className="font-semibold">USD</div>
+                      <div className="text-xs opacity-70">PayPal</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className={`block text-sm font-semibold mb-3 ${
+                  isDarkMode ? 'text-slate-300' : 'text-gray-700'
+                }`}>Amount ({currency})</label>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className={`w-full px-4 py-4 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-lg ${
+                    isDarkMode 
+                      ? 'bg-slate-700 border-slate-600 text-white' 
+                      : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                  placeholder={`Enter amount in ${currency}`}
+                  max={getWalletBalanceInCurrency(currency)}
+                />
+              </div>
+              
+              <div className={`p-4 rounded-xl ${
+                isDarkMode ? 'bg-slate-700' : 'bg-gray-50'
+              }`}>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-gray-600'}>Available balance:</span>
+                    <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+                      {formatCurrency(getWalletBalanceInCurrency(currency), currency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-gray-600'}>Withdrawal method:</span>
+                    <span className={`font-semibold ${
+                      currency === 'INR' ? 'text-purple-600' : 'text-blue-600'
+                    }`}>
+                      {currency === 'INR' ? '🏦 Bank Transfer' : '💳 PayPal'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex space-x-4 mt-8">
+              <button
+                onClick={() => setShowWithdrawModal(false)}
+                className={`flex-1 py-4 px-6 border rounded-xl font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+                  isDarkMode 
+                    ? 'border-slate-600 text-slate-300 hover:bg-slate-700' 
+                    : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleWithdraw}
+                disabled={!amount || processing || (currency === 'USD' ? convertCurrency(parseFloat(amount || '0'), 'USD', 'INR') : parseFloat(amount || '0')) > (profile?.wallet_balance || 0)}
+                className="flex-1 py-4 px-6 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-xl font-semibold hover:from-red-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 whitespace-nowrap cursor-pointer"
+              >
+                {processing ? (
+                  <div className="flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                    Processing...
+                  </div>
+                ) : (
+                  `Withdraw ${currency}`
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
