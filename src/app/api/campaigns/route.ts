@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(campaigns.employer_id, currentUser.userId),
-          status ? eq(campaigns.status, status) : undefined
+          ...(status ? [eq(campaigns.status, status)] : [])
         )
       )
       .orderBy(desc(campaigns.created_at));
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ campaigns: employerCampaigns });
     } else {
       // Get public campaigns for workers
-      const conditions = [eq(campaigns.visibility, 'public')];
+      const conditions: any[] = [eq(campaigns.visibility, 'public')];
       
       if (status) {
         conditions.push(eq(campaigns.status, status));
