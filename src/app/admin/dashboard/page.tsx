@@ -164,7 +164,7 @@ export default function AdminDashboard() {
       case 'settings':
         return <SettingsSection />;
       default:
-        return <OverviewSection adminData={adminData} />;
+        return <OverviewSection />;
     }
   };
 
