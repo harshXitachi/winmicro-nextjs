@@ -571,7 +571,7 @@ export default function Marketplace() {
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500 font-medium">Applications:</span>
-                        <span className="text-gray-700 font-bold">{task.applications_count || 0}</span>
+                        <span className="text-gray-700 font-bold">{(task.applications_count ?? 0)}</span>
                       </div>
                     </div>
 
