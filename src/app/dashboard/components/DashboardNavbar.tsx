@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../hooks/useAuth';
 import { signOut } from '../../../lib/supabase';
-import { useDarkMode } from '../page';
+import { useDarkMode } from '@/context/DarkModeContext';
 
 interface DashboardNavbarProps {
   activeSection: string;

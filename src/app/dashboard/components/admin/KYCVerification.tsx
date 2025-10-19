@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useDarkMode } from '../../page';
+import { useDarkMode } from '@/context/DarkModeContext';
 
 interface KYCSubmission {
   user_id: number;

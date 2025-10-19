@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { getTasks, getTaskApplications } from '../../../lib/supabase';
-import { useDarkMode } from '../page';
+import { useDarkMode } from '@/context/DarkModeContext';
 
 interface Task {
   id: string;

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { updateUserProfile } from '../../../lib/supabase';
-import { useDarkMode } from '../page';
+import { useDarkMode } from '@/context/DarkModeContext';
 
 export default function ProfileSection() {
   const { user, profile, refreshProfile } = useAuth();
