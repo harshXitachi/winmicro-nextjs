@@ -1,18 +1,9 @@
-version: 1
-backend:
-  phases:
-    build:
-      commands:
-        - npm ci --legacy-peer-deps
-        - npx ampx generate --outputs-out-dir amplify_outputs --clean
-    post_build:
-      commands:
-        - npx ampx pipeline-deploy --cicd
+﻿version: 1
 frontend:
   phases:
     preBuild:
       commands:
-        - npm ci --legacy-peer-deps
+        - npm ci
     build:
       commands:
         - npm run build
