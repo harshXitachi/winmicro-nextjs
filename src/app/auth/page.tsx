@@ -364,28 +364,6 @@ export default function Auth() {
                   </div>
                 </div>
 
-                {/* Admin Demo Info */}
-                <div className="mt-8 bg-blue-50 border border-blue-200 rounded-2xl p-6">
-                  <h3 className="text-blue-900 font-semibold mb-2 flex items-center">
-                    <i className="ri-admin-line mr-2"></i>
-                    Admin Demo Access
-                  </h3>
-                  <p className="text-blue-700 text-sm mb-3">
-                    Use these credentials to access the admin panel:
-                  </p>
-                  <div className="bg-white rounded-xl p-4 border border-blue-200">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">Email:</span>
-                        <span className="ml-2 font-mono text-blue-600">admin@gmail.com</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Password:</span>
-                        <span className="ml-2 font-mono text-blue-600">admin1</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Security Note */}
                 <div className="mt-8 text-center">

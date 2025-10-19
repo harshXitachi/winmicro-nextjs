@@ -12,14 +12,18 @@ export async function GET() {
     }
 
     // Get full user details
-    const [user] = await db.select().from(users).where(eq(users.id, currentUser.userId)).limit(1);
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, currentUser.userId),
+    });
     
     if (!user) {
       return NextResponse.json({ user: null });
     }
 
     // Get user profile
-    const [userProfile] = await db.select().from(profiles).where(eq(profiles.user_id, user.id)).limit(1);
+    const userProfile = await db.query.profiles.findFirst({
+      where: eq(profiles.user_id, user.id),
+    });
 
     return NextResponse.json({
       user: {

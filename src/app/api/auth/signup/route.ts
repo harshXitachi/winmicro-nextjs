@@ -17,8 +17,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (existingUser.length > 0) {
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
+    if (existingUser) {
       return NextResponse.json(
         { error: 'User already exists with this email' },
         { status: 400 }
@@ -29,21 +31,23 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await hashPassword(password);
 
     // Create user
-    const [newUser] = await db.insert(users).values({
+    const newUserResult = await db.insert(users).values({
       email,
       password: hashedPassword,
       first_name: first_name || '',
       last_name: last_name || '',
       role: 'user',
     }).returning();
+    const newUser = newUserResult[0];
 
     // Create profile
-    const [newProfile] = await db.insert(profiles).values({
+    const newProfileResult = await db.insert(profiles).values({
       user_id: newUser.id,
       username: `user${Date.now()}`,
       wallet_balance: '0.00',
       response_time: 'N/A',
     }).returning();
+    const newProfile = newProfileResult[0];
 
     // Generate JWT token
     const token = await generateToken({

@@ -17,7 +17,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user
-    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    const user = await db.query.users.findFirst({
+      where: eq(users.email, email),
+    });
     
     if (!user) {
       return NextResponse.json(
@@ -36,7 +38,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user profile
-    const [userProfile] = await db.select().from(profiles).where(eq(profiles.user_id, user.id)).limit(1);
+    const userProfile = await db.query.profiles.findFirst({
+      where: eq(profiles.user_id, user.id),
+    });
 
     // Generate JWT token
     const token = await generateToken({
