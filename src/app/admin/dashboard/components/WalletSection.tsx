@@ -39,13 +39,10 @@ const updateAdminSettings = async (settings: any) => {
 
 const getPaymentTransactions = async (userId: string) => {
   try {
-    let query = supabase.from('payment_transactions').select('*');
-    
-    if (userId !== 'all') {
-      query = query.eq('user_id', userId);
-    }
-    
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('payment_transactions')
+      .select('*')
+      .order('created_at', { ascending: false });
     
     if (error) throw error;
     return { data, error: null };
