@@ -69,26 +69,10 @@ export default function WalletSection() {
 
   const loadData = async () => {
     try {
-      const [settingsResult, transactionsResult] = await Promise.all([
-        getAdminSettings(),
-        getPaymentTransactions('all') // Get all transactions for admin
-      ]);
-
-      setSettings(settingsResult.data);
-      setTransactions(transactionsResult.data || []);
-      
-      // Fetch admin wallet balances for each currency
-      const { data: adminWallets } = await supabase
-        .from('admin_wallets')
-        .select('currency, balance');
-      
-      if (adminWallets) {
-        const balances: Record<Currency, number> = { INR: 0, USD: 0, USDT: 0 };
-        adminWallets.forEach((wallet: any) => {
-          balances[wallet.currency as Currency] = parseFloat(wallet.balance || '0');
-        });
-        setWalletBalances(balances);
-      }
+      // Initialize with default values
+      setSettings(null);
+      setTransactions([]);
+      setWalletBalances({ INR: 0, USD: 0, USDT: 0 });
     } catch (error) {
       console.error('Error loading admin wallet data:', error);
     } finally {
