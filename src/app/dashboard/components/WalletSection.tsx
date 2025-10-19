@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
-import { useDarkMode } from '../page';
+import { useDarkMode } from '@/context/DarkModeContext';
 import { formatCurrency, convertCurrency, getCurrencySymbol, getPaymentGateway, type Currency } from '@/lib/currency';
 
 interface Transaction {

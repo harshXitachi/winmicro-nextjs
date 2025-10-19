@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import { useDarkMode, DarkModeProvider } from '@/context/DarkModeContext';
 import DashboardNavbar from './components/DashboardNavbar';
 import OverviewSection from './components/OverviewSection';
 import MyTasksSection from './components/MyTasksSection';
@@ -12,26 +13,11 @@ import ProfileSection from './components/ProfileSection';
 import KYCVerification from './components/admin/KYCVerification';
 import BanNotification from './components/BanNotification';
 
-// Dark mode context
-const DarkModeContext = createContext<{
-  isDarkMode: boolean;
-  toggleDarkMode: () => void;
-}>({
-  isDarkMode: false,
-  toggleDarkMode: () => {},
-});
-
-export const useDarkMode = () => useContext(DarkModeContext);
-
-export default function Dashboard() {
+function DashboardContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { isDarkMode } = useDarkMode();
   const [activeSection, setActiveSection] = useState('overview');
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -78,18 +64,24 @@ export default function Dashboard() {
   };
 
   return (
-    <DarkModeContext.Provider value={{ isDarkMode, toggleDarkMode }}>
-      <div className={`min-h-screen ${isDarkMode ? 'bg-slate-900' : 'bg-gray-50'}`}>
-        <BanNotification />
-        <DashboardNavbar 
-          activeSection={activeSection} 
-          setActiveSection={setActiveSection} 
-        />
-        
-        <main className="pt-4">
-          {renderSection()}
-        </main>
-      </div>
-    </DarkModeContext.Provider>
+    <div className={`min-h-screen ${isDarkMode ? 'bg-slate-900' : 'bg-gray-50'}`}>
+      <BanNotification />
+      <DashboardNavbar 
+        activeSection={activeSection} 
+        setActiveSection={setActiveSection} 
+      />
+      
+      <main className="pt-4">
+        {renderSection()}
+      </main>
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <DarkModeProvider>
+      <DashboardContent />
+    </DarkModeProvider>
   );
 }
