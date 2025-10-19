@@ -163,10 +163,6 @@ export default function AdminDashboard() {
         return <WalletSection />;
       case 'settings':
         return <SettingsSection />;
-      case 'tasks':
-        return <TaskManagementSection />;
-      case 'analytics':
-        return <AnalyticsSection adminData={adminData} />;
       default:
         return <OverviewSection adminData={adminData} />;
     }
