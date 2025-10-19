@@ -34,10 +34,10 @@ const getAdminSettings = async () => {
     const { data, error } = await supabase
       .from('admin_settings')
       .select('*')
-      .single();
+      .limit(1);
     
-    if (error && error.code !== 'PGRST116') throw error;
-    return { data, error: null };
+    if (error) throw error;
+    return { data: (data && data.length > 0) ? data[0] : null, error: null };
   } catch (error: any) {
     console.error('Get admin settings error:', error);
     return { data: null, error };
@@ -49,11 +49,10 @@ const updateAdminSettings = async (settings: any) => {
     const { data, error } = await supabase
       .from('admin_settings')
       .upsert(settings)
-      .select()
-      .single();
+      .select();
     
     if (error) throw error;
-    return { data, error: null };
+    return { data: (data && data.length > 0) ? data[0] : null, error: null };
   } catch (error: any) {
     console.error('Update admin settings error:', error);
     return { data: null, error };
