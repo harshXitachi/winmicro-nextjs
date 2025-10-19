@@ -1,9 +1,9 @@
 
 import { useState } from 'react';
-import { useDarkMode } from '../page';
+import { useRouter } from 'next/navigation';
+import { useDarkMode } from '@/context/DarkModeContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { signOut } from '../../../lib/supabase';
-import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
   activeSection: string;
@@ -13,7 +13,7 @@ interface SidebarProps {
 export default function Sidebar({ activeSection, setActiveSection }: SidebarProps) {
   const { isDarkMode, toggleDarkMode } = useDarkMode();
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -29,7 +29,7 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
     setLoggingOut(true);
     try {
       await signOut();
-      navigate('/auth');
+      router.push('/auth');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -39,7 +39,7 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
   };
 
   const handleMarketplaceClick = () => {
-    navigate('/marketplace');
+    router.push('/marketplace');
   };
 
   return (

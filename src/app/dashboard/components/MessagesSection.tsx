@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { useAuth } from '../../../hooks/useAuth';
 import { getMessages, sendMessage, markMessageAsRead, getUserProfile } from '../../../lib/supabase';
-import { useDarkMode } from '../page';
+import { useDarkMode } from '@/context/DarkModeContext';
 
 interface Message {
   id: string;
