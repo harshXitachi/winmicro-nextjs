@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     // Update task applications count
     await db
       .update(tasks)
-      .set({ applications_count: task.applications_count + 1 })
+      .set({ applications_count: (task.applications_count ?? 0) + 1 })
       .where(eq(tasks.id, task_id));
 
     // Send application message to client
