@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
         kyc_document_type: document_type,
         kyc_document_url: document_data,
         kyc_status: 'pending',
-        kyc_submitted_at: new Date(),
       })
       .where(eq(profiles.user_id, payload.userId))
       .returning();
@@ -62,7 +61,6 @@ export async function GET(request: NextRequest) {
       .select({
         kyc_status: profiles.kyc_status,
         kyc_document_type: profiles.kyc_document_type,
-        kyc_submitted_at: profiles.kyc_submitted_at,
         kyc_verified_at: profiles.kyc_verified_at,
       })
       .from(profiles)
