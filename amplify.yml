@@ -15,3 +15,7 @@ frontend:
     paths:
       - node_modules/**/*
       - .next/cache/**/*
+  env:
+    VARIABLES:
+      DATABASE_URL: 'postgresql://placeholder:placeholder@localhost/db'
+      NODE_ENV: 'production'
