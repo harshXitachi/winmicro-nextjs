@@ -36,7 +36,6 @@ export async function GET(request: NextRequest) {
         kyc_status: profiles.kyc_status,
         kyc_document_type: profiles.kyc_document_type,
         kyc_document_url: profiles.kyc_document_url,
-        kyc_submitted_at: profiles.kyc_submitted_at,
         email: users.email,
         first_name: users.first_name,
         last_name: users.last_name,
