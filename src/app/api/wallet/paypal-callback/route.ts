@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, wallet_transactions, profiles } from '@/lib/db';
+import { db, wallet_transactions, profiles, admin_wallets } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 import { capturePayPalOrder } from '@/lib/payments/paypal';
 
@@ -68,6 +68,30 @@ export async function POST(request: NextRequest) {
         await db.update(profiles)
           .set({ wallet_balance_usd: newBalance })
           .where(eq(profiles.id, profile.id));
+      }
+
+      // Update admin wallet with commission if applicable
+      const commissionAmount = parseFloat(transaction.commission_amount || '0');
+      if (commissionAmount > 0) {
+        const currency = transaction.currency || 'USD';
+        const [adminWallet] = await db.select()
+          .from(admin_wallets)
+          .where(eq(admin_wallets.currency, currency));
+
+        if (adminWallet) {
+          const currentAdminBalance = parseFloat(adminWallet.balance);
+          const currentEarned = parseFloat(adminWallet.total_commission_earned);
+          const newAdminBalance = (currentAdminBalance + commissionAmount).toFixed(2);
+          const newEarned = (currentEarned + commissionAmount).toFixed(2);
+
+          await db.update(admin_wallets)
+            .set({
+              balance: newAdminBalance,
+              total_commission_earned: newEarned,
+              updated_at: new Date(),
+            })
+            .where(eq(admin_wallets.id, adminWallet.id));
+        }
       }
 
       return NextResponse.json({

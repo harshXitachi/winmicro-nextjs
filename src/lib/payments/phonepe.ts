@@ -1,9 +1,9 @@
 import crypto from 'crypto';
 
-// PhonePay Gateway Configuration
-const PHONEPE_BASE_URL = process.env.PHONEPE_BASE_URL || 'https://api-preprod.phonepe.com/apis/hermes';
-const PHONEPE_MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID || 'M22AFUJH1IZRR';
-const PHONEPE_SECRET_KEY = process.env.PHONEPE_SECRET_KEY || 'c7199d0e-5854-41f5-9604-3ae51eb8b3d1';
+// PhonePe Gateway Configuration (use production by default; require env credentials)
+const PHONEPE_BASE_URL = process.env.PHONEPE_BASE_URL || 'https://api.phonepe.com/apis/hermes';
+const PHONEPE_MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID || '';
+const PHONEPE_SECRET_KEY = process.env.PHONEPE_SECRET_KEY || '';
 const PHONEPE_KEY_INDEX = process.env.PHONEPE_KEY_INDEX ? parseInt(process.env.PHONEPE_KEY_INDEX) : 1;
 
 interface PhonePePaymentPayload {
@@ -62,13 +62,17 @@ function generateXVerifyForStatus(path: string): string {
 export async function createPhonePePayment(
   userId: string,
   transactionId: string,
-  amount: number, // in rupees
+  amount: number, // in rupees (this should be the payable amount including any commission)
   phoneNumber: string,
   redirectUrl: string,
   callbackUrl: string
 ): Promise<{ url: string; transactionId: string }> {
   try {
-    const amountInPaise = amount * 100;
+    if (!PHONEPE_MERCHANT_ID || !PHONEPE_SECRET_KEY) {
+      throw new Error('PhonePe credentials not configured. Please set PHONEPE_MERCHANT_ID and PHONEPE_SECRET_KEY.');
+    }
+
+    const amountInPaise = Math.round(amount * 100);
 
     const payload: PhonePePaymentPayload = {
       merchantId: PHONEPE_MERCHANT_ID,
@@ -91,7 +95,8 @@ export async function createPhonePePayment(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-VERIFY': xVerify,
+'X-VERIFY': xVerify,
+        'X-MERCHANT-ID': PHONEPE_MERCHANT_ID,
       },
       body: JSON.stringify({
         request: base64Payload,
@@ -135,6 +140,10 @@ export async function verifyPhonePePayment(
   merchantTransactionId: string
 ): Promise<{ status: string; amount: number; transactionId: string }> {
   try {
+    if (!PHONEPE_MERCHANT_ID || !PHONEPE_SECRET_KEY) {
+      throw new Error('PhonePe credentials not configured. Please set PHONEPE_MERCHANT_ID and PHONEPE_SECRET_KEY.');
+    }
+
     const path = `/pg/v1/status/${PHONEPE_MERCHANT_ID}/${merchantTransactionId}`;
     const xVerify = generateXVerifyForStatus(path);
 
@@ -175,8 +184,12 @@ export async function refundPhonePePayment(
   amount: number
 ): Promise<{ success: boolean; refundId: string }> {
   try {
+    if (!PHONEPE_MERCHANT_ID || !PHONEPE_SECRET_KEY) {
+      throw new Error('PhonePe credentials not configured. Please set PHONEPE_MERCHANT_ID and PHONEPE_SECRET_KEY.');
+    }
+
     const refundId = `REFUND_${Date.now()}`;
-    const amountInPaise = amount * 100;
+    const amountInPaise = Math.round(amount * 100);
 
     const payload = JSON.stringify({
       merchantId: PHONEPE_MERCHANT_ID,

@@ -1,8 +1,8 @@
-// PayPal Gateway Configuration
-const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || 'AZCRRRbyB5ZsN3gOeQ3VzXAQ9z_XGkQBIBXiV7j-50_l5EkBaHDZMrc6C8uYaHJF6xTddfITdfau00zE';
-const PAYPAL_SECRET = process.env.PAYPAL_SECRET || 'EElmez_2nNLl8SohHumQZsTTIv3_Lk3OwVagVvjesSYVsqr_2uGebrPB5WeTbWD-Kf9cWR7FsFUdn-sm';
-const PAYPAL_API_BASE = process.env.PAYPAL_API_BASE || 'https://api.paypal.com';
-const IS_SANDBOX = process.env.PAYPAL_MODE === 'sandbox' || true;
+// PayPal Gateway Configuration (require env credentials; select API base by mode)
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || '';
+const PAYPAL_SECRET = process.env.PAYPAL_SECRET || '';
+const PAYPAL_MODE = process.env.PAYPAL_MODE === 'sandbox' ? 'sandbox' : 'live';
+const PAYPAL_API_BASE = process.env.PAYPAL_API_BASE || (PAYPAL_MODE === 'sandbox' ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com');
 
 let cachedAccessToken: string | null = null;
 let tokenExpiry: number = 0;
@@ -61,6 +61,9 @@ async function getAccessToken(): Promise<string> {
   }
 
   try {
+    if (!PAYPAL_CLIENT_ID || !PAYPAL_SECRET) {
+      throw new Error('PayPal credentials not configured. Please set PAYPAL_CLIENT_ID and PAYPAL_SECRET.');
+    }
     const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString('base64');
 
     const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {

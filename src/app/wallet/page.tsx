@@ -21,6 +21,19 @@ interface Transaction {
   created_at: string;
 }
 
+interface CommissionSettings {
+  commission_percentage: string;
+  commission_on_deposits: boolean;
+  commission_on_transfers: boolean;
+  inr_wallet_enabled: boolean;
+  usd_wallet_enabled: boolean;
+  usdt_wallet_enabled: boolean;
+  min_deposit_inr: string;
+  max_deposit_inr: string;
+  min_deposit_usd: string;
+  max_deposit_usd: string;
+}
+
 export default function WalletPage() {
   const router = useRouter();
   const { user, profile, loading } = useAuth();
@@ -31,6 +44,7 @@ export default function WalletPage() {
     defaultCurrency: 'INR',
   });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [commissionSettings, setCommissionSettings] = useState<CommissionSettings | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'deposit' | 'withdraw' | 'history'>('overview');
   const [depositCurrency, setDepositCurrency] = useState<'INR' | 'USD'>('INR');
   const [depositAmount, setDepositAmount] = useState('');
@@ -48,8 +62,21 @@ export default function WalletPage() {
         defaultCurrency: profile.default_currency || 'INR',
       });
       fetchTransactions();
+      fetchCommissionSettings();
     }
   }, [user, profile, loading, router]);
+
+  const fetchCommissionSettings = async () => {
+    try {
+      const res = await fetch('/api/settings/commission');
+      if (res.ok) {
+        const data = await res.json();
+        setCommissionSettings(data.settings);
+      }
+    } catch (error) {
+      console.error('Failed to fetch commission settings:', error);
+    }
+  };
 
   const fetchTransactions = async () => {
     try {
@@ -241,25 +268,57 @@ export default function WalletPage() {
             {/* Deposit Tab */}
             {activeTab === 'deposit' && (
               <div className="max-w-2xl">
+                {/* Wallet Maintenance Warning */}
+                {commissionSettings && depositCurrency === 'INR' && !commissionSettings.inr_wallet_enabled && (
+                  <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center">
+                      <i className="ri-alert-line text-yellow-600 text-xl mr-3"></i>
+                      <div>
+                        <h4 className="font-semibold text-yellow-900">INR Wallet Maintenance</h4>
+                        <p className="text-sm text-yellow-800">The INR wallet is currently under maintenance. Please try again later or use USD wallet.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {commissionSettings && depositCurrency === 'USD' && !commissionSettings.usd_wallet_enabled && (
+                  <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center">
+                      <i className="ri-alert-line text-yellow-600 text-xl mr-3"></i>
+                      <div>
+                        <h4 className="font-semibold text-yellow-900">USD Wallet Maintenance</h4>
+                        <p className="text-sm text-yellow-800">The USD wallet is currently under maintenance. Please try again later or use INR wallet.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-3">Currency</label>
                   <div className="flex gap-3">
-                    {['INR', 'USD'].map((curr) => (
-                      <button
-                        key={curr}
-                        onClick={() => {
-                          setDepositCurrency(curr as 'INR' | 'USD');
-                          setDepositAmount('');
-                        }}
-                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                          depositCurrency === curr
-                            ? 'bg-purple-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {curr}
-                      </button>
-                    ))}
+                    {['INR', 'USD'].map((curr) => {
+                      const isDisabled = commissionSettings && 
+                        ((curr === 'INR' && !commissionSettings.inr_wallet_enabled) ||
+                        (curr === 'USD' && !commissionSettings.usd_wallet_enabled));
+                      return (
+                        <button
+                          key={curr}
+                          onClick={() => {
+                            if (!isDisabled) {
+                              setDepositCurrency(curr as 'INR' | 'USD');
+                              setDepositAmount('');
+                            }
+                          }}
+                          disabled={!!isDisabled}
+                          className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                            depositCurrency === curr
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {curr} {isDisabled && '(Maintenance)'}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -275,8 +334,9 @@ export default function WalletPage() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         min="1"
                         step="1"
+                        disabled={!!(commissionSettings && !commissionSettings.inr_wallet_enabled)}
                       />
-                      <p className="text-xs text-gray-500 mt-1">Minimum: ₹100</p>
+                      <p className="text-xs text-gray-500 mt-1">Minimum: ₹{commissionSettings?.min_deposit_inr || '100'}</p>
                     </div>
 
                     <div>
@@ -287,12 +347,34 @@ export default function WalletPage() {
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="10-digit mobile number"
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        disabled={!!(commissionSettings && !commissionSettings.inr_wallet_enabled)}
                       />
                     </div>
 
+                    {/* Commission Info */}
+                    {commissionSettings && commissionSettings.commission_on_deposits && depositAmount && (
+                      <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-2">Commission Details:</p>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span>Deposit Amount:</span>
+                            <span className="font-semibold">₹{parseFloat(depositAmount).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-orange-600">
+                            <span>Commission ({commissionSettings.commission_percentage}%):</span>
+                            <span className="font-semibold">+₹{(parseFloat(depositAmount) * parseFloat(commissionSettings.commission_percentage) / 100).toFixed(2)}</span>
+                          </div>
+                          <div className="border-t border-orange-200 pt-1 mt-1 flex justify-between font-semibold">
+                            <span>You Pay:</span>
+                            <span className="text-orange-700">₹{(parseFloat(depositAmount) * (1 + parseFloat(commissionSettings.commission_percentage) / 100)).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <button
                       type="submit"
-                      disabled={isProcessing}
+                      disabled={isProcessing || !!(commissionSettings && !commissionSettings.inr_wallet_enabled)}
                       className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
                     >
                       {isProcessing ? 'Processing...' : 'Proceed to PhonePay'}
@@ -310,13 +392,35 @@ export default function WalletPage() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         min="0.01"
                         step="0.01"
+                        disabled={!!(commissionSettings && !commissionSettings.usd_wallet_enabled)}
                       />
-                      <p className="text-xs text-gray-500 mt-1">Minimum: $2</p>
+                      <p className="text-xs text-gray-500 mt-1">Minimum: ${commissionSettings?.min_deposit_usd || '2'}</p>
                     </div>
+
+                    {/* Commission Info */}
+                    {commissionSettings && commissionSettings.commission_on_deposits && depositAmount && (
+                      <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-2">Commission Details:</p>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span>Deposit Amount:</span>
+                            <span className="font-semibold">${parseFloat(depositAmount).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-orange-600">
+                            <span>Commission ({commissionSettings.commission_percentage}%):</span>
+                            <span className="font-semibold">+${(parseFloat(depositAmount) * parseFloat(commissionSettings.commission_percentage) / 100).toFixed(2)}</span>
+                          </div>
+                          <div className="border-t border-orange-200 pt-1 mt-1 flex justify-between font-semibold">
+                            <span>You Pay:</span>
+                            <span className="text-orange-700">${(parseFloat(depositAmount) * (1 + parseFloat(commissionSettings.commission_percentage) / 100)).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <button
                       type="submit"
-                      disabled={isProcessing}
+                      disabled={isProcessing || !!(commissionSettings && !commissionSettings.usd_wallet_enabled)}
                       className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
                     >
                       {isProcessing ? 'Processing...' : 'Proceed to PayPal'}

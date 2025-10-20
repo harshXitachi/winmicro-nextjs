@@ -10,6 +10,7 @@ import UsersSection from './components/UsersSection';
 import WalletSection from './components/WalletSection';
 import SettingsSection from './components/SettingsSection';
 import OverviewSection from './components/OverviewSection';
+import CampaignManagementSection from './components/CampaignManagementSection';
 
 export default function AdminDashboard() {
   const { user, isAdmin: isAdminUser, loading } = useAuth();
@@ -35,15 +36,21 @@ export default function AdminDashboard() {
       // Check for admin session
       const adminSession = localStorage.getItem('admin_session');
       if (!adminSession && !isAdminUser) {
-        router.push('/auth');
+        router.push('/admin/auth');
         return;
       }
       
       if (adminSession) {
-        const session = JSON.parse(adminSession);
-        if (session.expires_at <= Date.now()) {
+        try {
+          const session = JSON.parse(adminSession);
+          if (session.expires_at <= Date.now()) {
+            localStorage.removeItem('admin_session');
+            router.push('/admin/auth');
+            return;
+          }
+        } catch (e) {
           localStorage.removeItem('admin_session');
-          router.push('/auth');
+          router.push('/admin/auth');
           return;
         }
       }
@@ -118,8 +125,11 @@ export default function AdminDashboard() {
   }, []);
 
   const handleLogout = async () => {
+    // Clear admin session
+    localStorage.removeItem('admin_session');
+    // Also sign out from user auth if applicable
     await signOut();
-    router.push('/auth');
+    router.push('/admin/auth');
   };
 
   if (loading) {
@@ -145,10 +155,10 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-red-900 mb-4">Access Denied</h1>
           <p className="text-red-700 mb-6">You don't have permission to access the admin dashboard.</p>
           <button
-            onClick={() => router.push('/auth')}
+            onClick={() => router.push('/admin/auth')}
             className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
           >
-            Go to Login
+            Go to Admin Login
           </button>
         </div>
       </div>
@@ -161,10 +171,16 @@ export default function AdminDashboard() {
         return <UsersSection />;
       case 'wallet':
         return <WalletSection />;
+      case 'tasks':
+        return <TaskManagementSection />;
+      case 'analytics':
+        return <AnalyticsSection adminData={adminData} />;
+      case 'campaigns':
+        return <CampaignManagementSection />;
       case 'settings':
         return <SettingsSection />;
       default:
-        return <OverviewSection />;
+        return <OverviewSection adminData={adminData} />;
     }
   };
 

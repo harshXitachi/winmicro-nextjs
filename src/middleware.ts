@@ -23,12 +23,15 @@ async function verifyToken(token: string): Promise<JWTPayload | null> {
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   
+  // Admin routes require admin session, not user auth
+  const isAdminRoute = path.startsWith('/admin');
+  const isAdminAuthPage = path === '/admin/auth';
+  const isAdminDashboard = path.startsWith('/admin/dashboard') || path.startsWith('/admin/commission') || path.startsWith('/admin/settings');
+  
   const isProtectedRoute = path.startsWith('/dashboard') || 
-                           path.startsWith('/admin') ||
+                           (isAdminRoute && !isAdminAuthPage) ||
                            path.startsWith('/profile-setup') ||
                            path.startsWith('/settings');
-
-  const isAdminRoute = path.startsWith('/admin');
 
   const authToken = request.cookies.get('auth_token');
   let userRole: string | null = null;
@@ -42,19 +45,29 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (isProtectedRoute) {
+  // Handle admin routes
+  if (isAdminDashboard) {
+    // Check for admin session in localStorage (client-side)
+    // This is validated on client-side, but we can add server-side validation if needed
+    // For now, allow access and let client-side handle session validation
+    return NextResponse.next();
+  }
+
+  // Redirect /admin to /admin/auth
+  if (path === '/admin' || path === '/admin/') {
+    return NextResponse.redirect(new URL('/admin/auth', request.url));
+  }
+
+  // Protected user routes
+  if (isProtectedRoute && !isAdminRoute) {
     if (!isAuthenticated) {
       return NextResponse.redirect(new URL('/auth', request.url));
-    }
-    
-    if (isAdminRoute && userRole !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
 
   if (path === '/auth' && isAuthenticated) {
     if (userRole === 'admin') {
-      return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+      return NextResponse.redirect(new URL('/admin/auth', request.url));
     } else {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }

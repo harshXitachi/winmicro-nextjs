@@ -128,11 +128,17 @@ Last updated: ${new Date().toLocaleDateString()}
 
   const loadSettings = async () => {
     try {
+      console.log('📊 Loading commission settings from API...');
       const response = await fetch('/api/admin/wallet');
+      console.log('📊 Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 API Response data:', data);
+        console.log('📊 Settings from API:', data.settings);
+        
         if (data.settings) {
-          setCommissionSettings({
+          const newSettings = {
             commission_percentage: data.settings.commission_percentage || '2.00',
             commission_on_deposits: data.settings.commission_on_deposits ?? true,
             commission_on_transfers: data.settings.commission_on_transfers ?? true,
@@ -151,23 +157,51 @@ Last updated: ${new Date().toLocaleDateString()}
             max_withdrawal_usd: data.settings.max_withdrawal_usd || '2000.00',
             min_withdrawal_usdt: data.settings.min_withdrawal_usdt || '10.00',
             max_withdrawal_usdt: data.settings.max_withdrawal_usdt || '2000.00',
-          });
+          };
+          console.log('✅ Loaded settings:', newSettings);
+          setCommissionSettings(newSettings);
+        } else {
+          console.warn('⚠️ No settings in response, using defaults');
         }
+      } else {
+        console.error('❌ Failed to load settings, status:', response.status);
       }
     } catch (error) {
-      console.error('Error loading settings:', error);
+      console.error('❌ Error loading settings:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (adminPassword === confirmPassword && adminPassword.length >= 6) {
-      // In real app, this would make an API call
-      alert('Admin password updated successfully!');
-      setAdminPassword('');
-      setConfirmPassword('');
+      setSaving(true);
+      try {
+        const response = await fetch('/api/admin/password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            new_password: adminPassword,
+            confirm_password: confirmPassword,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          alert('Admin password updated successfully!');
+          setAdminPassword('');
+          setConfirmPassword('');
+        } else {
+          alert(data.error || 'Failed to update password');
+        }
+      } catch (error) {
+        console.error('Error updating password:', error);
+        alert('Failed to update password. Please try again.');
+      } finally {
+        setSaving(false);
+      }
     } else {
       alert('Passwords do not match or are too short (minimum 6 characters)');
     }
@@ -186,21 +220,45 @@ Last updated: ${new Date().toLocaleDateString()}
   const handleCommissionUpdate = async () => {
     setSaving(true);
     try {
+      const adminSession = localStorage.getItem('admin_session');
+      
+      // Validate commission percentage
+      const percentage = parseFloat(commissionSettings.commission_percentage);
+      if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+        alert('❌ Commission percentage must be between 0 and 100');
+        setSaving(false);
+        return;
+      }
+      
+      // Log update for debugging
+      console.log('Updating commission settings:', commissionSettings);
+      
       const response = await fetch('/api/admin/wallet', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-session': adminSession ? 'true' : '',
+        },
         body: JSON.stringify(commissionSettings),
       });
 
+      console.log('Response status:', response.status);
+      
+      const data = await response.json();
+      console.log('Response data:', data);
+
       if (response.ok) {
-        alert('Commission settings updated successfully! Changes will apply immediately.');
+        alert('✅ Commission settings updated successfully! Changes will apply immediately to all deposits and transfers.');
+        // Reload settings to confirm changes persisted
+        setTimeout(() => {
+          loadSettings();
+        }, 500);
       } else {
-        const error = await response.json();
-        alert(`Failed to update commission settings: ${error.error || 'Unknown error'}`);
+        alert(`❌ Failed to update commission settings: ${data.error || 'Unknown error'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating commission settings:', error);
-      alert('Failed to update commission settings. Please try again.');
+      alert(`❌ Error: ${error.message || 'Failed to update commission settings. Please try again.'}`);
     } finally {
       setSaving(false);
     }
@@ -255,9 +313,17 @@ Last updated: ${new Date().toLocaleDateString()}
           </div>
           <button
             type="submit"
-            className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+            disabled={saving}
+            className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
-            Update Password
+            {saving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                Updating...
+              </>
+            ) : (
+              'Update Password'
+            )}
           </button>
         </form>
       </div>
@@ -405,19 +471,25 @@ Last updated: ${new Date().toLocaleDateString()}
               <h4 className="font-semibold text-gray-900 mb-3">Commission Preview (on ₹1,000 deposit)</h4>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Transaction Amount:</span>
+                  <span className="text-gray-600">Amount to Deposit:</span>
                   <span className="font-semibold">₹1,000</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Commission ({commissionSettings.commission_percentage}%):</span>
-                  <span className="font-semibold text-green-600">
-                    ₹{commissionSettings.commission_on_deposits ? ((1000 * parseFloat(commissionSettings.commission_percentage)) / 100).toFixed(2) : '0.00'}
+                  <span className="font-semibold text-orange-600">
+                    +₹{commissionSettings.commission_on_deposits ? ((1000 * parseFloat(commissionSettings.commission_percentage)) / 100).toFixed(2) : '0.00'}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm pt-2 border-t border-gray-300">
-                  <span className="text-gray-700 font-semibold">User Receives:</span>
-                  <span className="font-bold text-gray-900">
-                    ₹{commissionSettings.commission_on_deposits ? (1000 - (1000 * parseFloat(commissionSettings.commission_percentage)) / 100).toFixed(2) : '1000.00'}
+                  <span className="text-gray-700 font-semibold">Total User Pays:</span>
+                  <span className="font-bold text-blue-900">
+                    ₹{commissionSettings.commission_on_deposits ? (1000 + (1000 * parseFloat(commissionSettings.commission_percentage)) / 100).toFixed(2) : '1000.00'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs pt-2 text-gray-600">
+                  <span>Your Commission Earnings:</span>
+                  <span className="font-semibold text-green-600">
+                    +₹{commissionSettings.commission_on_deposits ? ((1000 * parseFloat(commissionSettings.commission_percentage)) / 100).toFixed(2) : '0.00'}
                   </span>
                 </div>
               </div>

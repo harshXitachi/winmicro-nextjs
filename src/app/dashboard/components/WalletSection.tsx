@@ -28,6 +28,13 @@ export default function WalletSection() {
   const [defaultCurrency, setDefaultCurrency] = useState<Currency>('INR');
   const [processing, setProcessing] = useState(false);
   const [commissionRate, setCommissionRate] = useState(2);
+  const [commissionOnDeposits, setCommissionOnDeposits] = useState(true);
+  const [commissionOnTransfers, setCommissionOnTransfers] = useState(true);
+  const [walletSettings, setWalletSettings] = useState({
+    inr_wallet_enabled: true,
+    usd_wallet_enabled: true,
+    usdt_wallet_enabled: true,
+  });
 
   useEffect(() => {
     if (user && profile) {
@@ -38,6 +45,16 @@ export default function WalletSection() {
     }
   }, [user, profile]);
 
+  // Refresh settings every 5 seconds to catch admin changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (user && profile) {
+        fetchCommissionSettings();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [user, profile]);
+
   const fetchCommissionSettings = async () => {
     try {
       const response = await fetch('/api/admin/wallet');
@@ -45,6 +62,15 @@ export default function WalletSection() {
         const data = await response.json();
         if (data.settings?.commission_percentage) {
           setCommissionRate(parseFloat(data.settings.commission_percentage));
+        }
+        if (data.settings) {
+          setCommissionOnDeposits(data.settings.commission_on_deposits ?? true);
+          setCommissionOnTransfers(data.settings.commission_on_transfers ?? true);
+          setWalletSettings({
+            inr_wallet_enabled: data.settings.inr_wallet_enabled ?? true,
+            usd_wallet_enabled: data.settings.usd_wallet_enabled ?? true,
+            usdt_wallet_enabled: data.settings.usdt_wallet_enabled ?? true,
+          });
         }
       }
     } catch (error) {
@@ -98,6 +124,16 @@ export default function WalletSection() {
 
   const handleDeposit = async () => {
     if (!user || !amount || processing) return;
+    
+    // Check if wallet is enabled
+    const isWalletEnabled = currency === 'INR' ? walletSettings.inr_wallet_enabled : 
+                           currency === 'USD' ? walletSettings.usd_wallet_enabled : 
+                           walletSettings.usdt_wallet_enabled;
+    
+    if (!isWalletEnabled) {
+      alert(`${currency} wallet is currently in maintenance mode. Please try again later.`);
+      return;
+    }
     
     setProcessing(true);
     try {
@@ -284,21 +320,60 @@ export default function WalletSection() {
           <div className="flex justify-center space-x-4">
             <button
               onClick={() => setShowDepositModal(true)}
-              className="px-8 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors shadow-lg flex items-center space-x-2"
+              disabled={currency === 'INR' ? !walletSettings.inr_wallet_enabled : currency === 'USD' ? !walletSettings.usd_wallet_enabled : !walletSettings.usdt_wallet_enabled}
+              className={`px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg flex items-center space-x-2 ${
+                (currency === 'INR' ? !walletSettings.inr_wallet_enabled : currency === 'USD' ? !walletSettings.usd_wallet_enabled : !walletSettings.usdt_wallet_enabled)
+                  ? 'bg-gray-400 text-white cursor-not-allowed opacity-60'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
             >
               <i className="ri-add-line"></i>
-              <span>Deposit {currency}</span>
+              <span>{(currency === 'INR' ? !walletSettings.inr_wallet_enabled : currency === 'USD' ? !walletSettings.usd_wallet_enabled : !walletSettings.usdt_wallet_enabled) ? 'Maintenance' : `Deposit ${currency}`}</span>
             </button>
             <button
               onClick={() => setShowWithdrawModal(true)}
-              className="px-8 py-3 bg-white text-slate-800 rounded-xl font-semibold hover:bg-gray-100 transition-colors shadow-lg flex items-center space-x-2"
+              disabled={currency === 'INR' ? !walletSettings.inr_wallet_enabled : currency === 'USD' ? !walletSettings.usd_wallet_enabled : !walletSettings.usdt_wallet_enabled}
+              className={`px-8 py-3 rounded-xl font-semibold transition-colors shadow-lg flex items-center space-x-2 ${
+                (currency === 'INR' ? !walletSettings.inr_wallet_enabled : currency === 'USD' ? !walletSettings.usd_wallet_enabled : !walletSettings.usdt_wallet_enabled)
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed opacity-60'
+                  : 'bg-white text-slate-800 hover:bg-gray-100'
+              }`}
             >
               <i className="ri-subtract-line"></i>
-              <span>Withdraw {currency}</span>
+              <span>{(currency === 'INR' ? !walletSettings.inr_wallet_enabled : currency === 'USD' ? !walletSettings.usd_wallet_enabled : !walletSettings.usdt_wallet_enabled) ? 'Maintenance' : `Withdraw ${currency}`}</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* Maintenance Mode Alerts */}
+      {!walletSettings.inr_wallet_enabled && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start space-x-3">
+          <i className="ri-alert-line text-2xl text-amber-600 flex-shrink-0 mt-0.5"></i>
+          <div>
+            <h4 className="font-semibold text-amber-900">INR Wallet Maintenance</h4>
+            <p className="text-sm text-amber-800">The INR wallet is currently in maintenance mode. Deposits and withdrawals are temporarily unavailable.</p>
+          </div>
+        </div>
+      )}
+      {!walletSettings.usd_wallet_enabled && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start space-x-3">
+          <i className="ri-alert-line text-2xl text-amber-600 flex-shrink-0 mt-0.5"></i>
+          <div>
+            <h4 className="font-semibold text-amber-900">USD Wallet Maintenance</h4>
+            <p className="text-sm text-amber-800">The USD wallet is currently in maintenance mode. Deposits and withdrawals are temporarily unavailable.</p>
+          </div>
+        </div>
+      )}
+      {!walletSettings.usdt_wallet_enabled && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start space-x-3">
+          <i className="ri-alert-line text-2xl text-amber-600 flex-shrink-0 mt-0.5"></i>
+          <div>
+            <h4 className="font-semibold text-amber-900">USDT Wallet Maintenance</h4>
+            <p className="text-sm text-amber-800">The USDT wallet is currently in maintenance mode. Deposits and withdrawals are temporarily unavailable.</p>
+          </div>
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -477,23 +552,25 @@ export default function WalletSection() {
                 <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span>Amount:</span>
+                      <span>Amount to Deposit:</span>
                       <span>{formatCurrency(parseFloat(amount || '0'), currency)}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Commission ({commissionRate}%):</span>
-                      <span className="text-red-600">
-                        -{formatCurrency(parseFloat(amount || '0') * (commissionRate / 100), currency)}
-                      </span>
-                    </div>
+                    {commissionOnDeposits && (
+                      <div className="flex justify-between">
+                        <span>Commission ({commissionRate}%):</span>
+                        <span className="text-orange-600">
+                          +{formatCurrency(parseFloat(amount || '0') * (commissionRate / 100), currency)}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span>Gateway:</span>
                       <span className="font-semibold">{getPaymentGateway(currency)}</span>
                     </div>
                     <div className="flex justify-between font-semibold pt-2 border-t">
-                      <span>You'll receive:</span>
-                      <span className="text-green-600">
-                        {formatCurrency(parseFloat(amount || '0') * (1 - commissionRate / 100), currency)}
+                      <span>Total to Pay:</span>
+                      <span className="text-blue-600">
+                        {formatCurrency(parseFloat(amount || '0') * (1 + (commissionOnDeposits ? commissionRate / 100 : 0)), currency)}
                       </span>
                     </div>
                   </div>

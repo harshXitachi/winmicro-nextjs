@@ -4,25 +4,41 @@ import { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { formatCurrency } from '@/lib/currency';
 
-export default function OverviewSection() {
+interface OverviewSectionProps {
+  adminData?: any;
+}
+
+export default function OverviewSection({ adminData }: OverviewSectionProps) {
   const overviewRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
   const chartsRef = useRef<HTMLDivElement>(null);
   
   const [stats, setStats] = useState({
-    totalUsers: 0,
+    totalUsers: adminData?.totalUsers || 0,
     activeTasks: 0,
-    totalRevenue: 0,
+    totalRevenue: adminData?.totalRevenue || 0,
     commissionRate: 2.0,
     newRegistrations: 0,
-    activeUsers: 0
+    activeUsers: adminData?.activeUsers || 0
   });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadAdminData();
-  }, []);
+    if (adminData) {
+      setStats({
+        totalUsers: adminData.totalUsers || 0,
+        activeTasks: adminData.totalTasks || 0,
+        totalRevenue: adminData.totalRevenue || 0,
+        commissionRate: 2.0,
+        newRegistrations: 0,
+        activeUsers: adminData.activeUsers || 0
+      });
+      setLoading(false);
+    } else {
+      loadAdminData();
+    }
+  }, [adminData]);
 
   const loadAdminData = async () => {
     try {

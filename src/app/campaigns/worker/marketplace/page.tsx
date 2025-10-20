@@ -248,6 +248,9 @@ export default function WorkerMarketplace() {
                           <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                             {campaign.type}
                           </span>
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300">
+                            <i className="ri-star-line mr-1"></i>SAMPLE
+                          </span>
                         </div>
                         
                         <p className="text-gray-600 mb-3 line-clamp-2">{campaign.description}</p>

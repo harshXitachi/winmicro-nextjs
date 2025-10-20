@@ -1,180 +1,110 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signUp, signIn } from '@/lib/supabase';
+import Script from 'next/script';
 import Navbar from '@/components/feature/Navbar';
 import Footer from '@/components/feature/Footer';
 
+declare global {
+  interface Window {
+    google: any;
+  }
+}
+
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    firstName: '',
-    lastName: ''
-  });
+  const [googleLoaded, setGoogleLoaded] = useState(false);
 
-  const router = useRouter();
-
-  // Clear messages when switching between login/signup
   useEffect(() => {
-    setError('');
-    setSuccess('');
-    setFormData({
-      email: '',
-      password: '',
-      firstName: '',
-      lastName: ''
-    });
-  }, [isLogin]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-    // Clear messages when user starts typing
-    if (error) setError('');
-    if (success) setSuccess('');
-  };
-
-  const validateForm = () => {
-    if (isLogin) {
-      if (!formData.email || !formData.password) {
-        setError('Email and password are required');
-        return false;
+    // Check if user is already logged in
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          router.push('/dashboard');
+        }
+      } catch (err) {
+        // Not logged in, continue
       }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-        setError('Please enter a valid email address');
-        return false;
-      }
-    } else {
-      // Signup validation
-      if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
-        setError('All fields are required');
-        return false;
-      }
-      
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-        setError('Please enter a valid email address');
-        return false;
-      }
-      
-      if (formData.password.length < 6) {
-        setError('Password must be at least 6 characters');
-        return false;
-      }
-    }
+    };
 
-    return true;
-  };
+    checkAuth();
+  }, [router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
-
+  const handleCredentialResponse = async (response: any) => {
     setLoading(true);
     setError('');
-    setSuccess('');
 
     try {
-      if (isLogin) {
-        // Use API for all logins (admin and regular users)
-        console.log('🔐 Starting login process');
-        setSuccess('Signing you in...');
-        
-        const { data, error } = await signIn(formData.email, formData.password);
-        
-        console.log('Login response:', { data, error });
-        
-        if (error) {
-          console.error('❌ Login error:', error);
-          setError(error.message || 'Login failed. Please check your credentials.');
-          setLoading(false);
-        } else if (data?.user) {
-          console.log('✅ Login successful, user data:', data.user);
-          console.log('📧 User role:', data.user.role);
-          setSuccess('Login successful! Redirecting...');
-          
-          // Small delay to show success message
-          setTimeout(() => {
-            console.log('🚀 Redirecting now...');
-            
-            // Redirect based on role using window.location for full page reload
-            const targetUrl = data.user.role === 'admin' ? '/admin/dashboard' : '/dashboard';
-            console.log('🎯 Target URL:', targetUrl);
-            
-            // Force full page reload to ensure auth state is updated
-            window.location.replace(targetUrl);
-          }, 500);
-        } else {
-          console.error('❌ Login failed: No user data returned');
-          setError('Login failed. Please try again.');
-          setLoading(false);
-        }
+      const result = await fetch('/api/auth/google/callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: response.credential }),
+        credentials: 'include',
+      });
+
+      const data = await result.json();
+
+      if (!result.ok) {
+        setError(data.error || 'Authentication failed');
+        setLoading(false);
+        return;
+      }
+
+      // If new user, redirect to profile setup
+      if (data.isNewUser) {
+        window.location.replace('/profile-setup');
       } else {
-        // Register new user
-        console.log('📝 Starting registration process');
-        setSuccess('Creating your account...');
-        
-        const { data, error } = await signUp(formData.email, formData.password, {
-          first_name: formData.firstName,
-          last_name: formData.lastName
-        });
-        
-        if (error) {
-          console.error('Registration error:', error);
-          setError(error.message || 'Registration failed. Please try again.');
-          setLoading(false);
-        } else if (data?.user) {
-          setSuccess('Account created successfully! Please login with your credentials.');
-          
-          // Switch to login mode after successful signup
-          setTimeout(() => {
-            setIsLogin(true);
-            setFormData({
-              email: formData.email,
-              password: '',
-              firstName: '',
-              lastName: ''
-            });
-            setLoading(false);
-          }, 2000);
-        } else {
-          setError('Registration failed. Please try again.');
-          setLoading(false);
-        }
+        // Existing user, redirect to dashboard
+        window.location.replace('/dashboard');
       }
     } catch (err: any) {
-      console.error('Auth error:', err);
-      setError(err.message || 'An unexpected error occurred. Please try again.');
+      console.error('Google auth error:', err);
+      setError(err.message || 'Authentication failed');
       setLoading(false);
     }
   };
 
-  const toggleMode = () => {
-    setIsLogin(!isLogin);
-    setError('');
-    setSuccess('');
-    setFormData({
-      email: '',
-      password: '',
-      firstName: '',
-      lastName: ''
-    });
-  };
+  useEffect(() => {
+    if (!googleLoaded || !window.google) return;
+
+    try {
+      window.google.accounts.id.initialize({
+        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse,
+      });
+
+      window.google.accounts.id.renderButton(
+        document.getElementById('google-signin-button'),
+        {
+          theme: 'outline',
+          size: 'large',
+          width: '100%',
+          text: 'signin_with',
+        }
+      );
+    } catch (err: any) {
+      console.error('Error initializing Google Sign-In:', err);
+      setError('Failed to load Google Sign-In');
+    }
+  }, [googleLoaded]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <Navbar />
+      <Script
+        src="https://accounts.google.com/gsi/client"
+        async
+        defer
+        onLoad={() => setGoogleLoaded(true)}
+      />
       
+      <Navbar />
+
       <main className="pt-20 pb-16">
         <div className="px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
@@ -200,15 +130,13 @@ export default function Auth() {
                 {/* Header */}
                 <div className="text-center mb-8">
                   <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl mb-6 shadow-xl">
-                    <i className={`${isLogin ? 'ri-login-box-line' : 'ri-user-add-line'} text-3xl text-white`}></i>
+                    <i className="ri-login-box-line text-3xl text-white"></i>
                   </div>
                   <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-4">
-                    {isLogin ? 'Welcome Back' : 'Join MicroWin'}
+                    Welcome to MicroWin
                   </h1>
                   <p className="text-gray-600 text-lg">
-                    {isLogin 
-                      ? 'Sign in to your account and continue your journey' 
-                      : 'Create your account and start earning with micro tasks'}
+                    Sign in with your Google account to continue
                   </p>
                 </div>
 
@@ -223,147 +151,69 @@ export default function Auth() {
                     </div>
                   )}
 
-                  {success && (
-                    <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl">
-                      <div className="flex items-center">
-                        <i className="ri-check-line text-green-500 mr-3 text-lg"></i>
-                        <p className="text-green-600 text-sm font-medium">{success}</p>
-                      </div>
-                    </div>
-                  )}
+                  {/* Google Sign-In Button */}
+                  <div className="space-y-4">
+                    <div
+                      id="google-signin-button"
+                      className="w-full"
+                      style={{ minHeight: '50px' }}
+                    />
 
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    {!isLogin && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="firstName" className="block text-sm font-semibold text-gray-700 mb-2">
-                            First Name
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              id="firstName"
-                              name="firstName"
-                              value={formData.firstName}
-                              onChange={handleInputChange}
-                              className="w-full px-4 py-3 pl-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
-                              required={!isLogin}
-                              disabled={loading}
-                              placeholder="John"
-                            />
-                            <i className="ri-user-line absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                          </div>
-                        </div>
-                        <div>
-                          <label htmlFor="lastName" className="block text-sm font-semibold text-gray-700 mb-2">
-                            Last Name
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              id="lastName"
-                              name="lastName"
-                              value={formData.lastName}
-                              onChange={handleInputChange}
-                              className="w-full px-4 py-3 pl-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
-                              required={!isLogin}
-                              disabled={loading}
-                              placeholder="Doe"
-                            />
-                            <i className="ri-user-line absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                          </div>
-                        </div>
+                    {!googleLoaded && (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="w-5 h-5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
                       </div>
                     )}
+                  </div>
 
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                        Email Address
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="email"
-                          id="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3 pl-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
-                          required
-                          disabled={loading}
-                          placeholder="john@example.com"
-                        />
-                        <i className="ri-mail-line absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                      </div>
+                  {/* Divider */}
+                  <div className="relative my-8">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200"></div>
                     </div>
-
-                    <div>
-                      <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                        Password
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? 'text' : 'password'}
-                          id="password"
-                          name="password"
-                          value={formData.password}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3 pl-12 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50/50"
-                          required
-                          disabled={loading}
-                          minLength={6}
-                          placeholder="Enter your password"
-                        />
-                        <i className="ri-lock-line absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                          disabled={loading}
-                        >
-                          <i className={`${showPassword ? 'ri-eye-off-line' : 'ri-eye-line'} text-lg`}></i>
-                        </button>
-                      </div>
-                      {!isLogin && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Password must be at least 6 characters long
-                        </p>
-                      )}
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">or</span>
                     </div>
+                  </div>
 
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-4 px-6 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none whitespace-nowrap cursor-pointer shadow-lg"
-                    >
-                      {loading ? (
-                        <div className="flex items-center justify-center">
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
-                          {isLogin ? 'Signing In...' : 'Creating Account...'}
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center">
-                          <i className={`${isLogin ? 'ri-login-box-line' : 'ri-user-add-line'} mr-2`}></i>
-                          {isLogin ? 'Sign In' : 'Create Account'}
-                        </div>
-                      )}
-                    </button>
-                  </form>
-
-                  {/* Toggle */}
-                  <div className="mt-8 text-center">
-                    <p className="text-gray-600">
-                      {isLogin ? "Don't have an account?" : "Already have an account?"}
-                      <button
-                        onClick={toggleMode}
-                        className="ml-2 text-blue-600 hover:text-blue-700 font-semibold transition-colors whitespace-nowrap cursor-pointer"
-                        disabled={loading}
-                      >
-                        {isLogin ? 'Sign up' : 'Sign in'}
-                      </button>
+                  {/* Info Text */}
+                  <div className="text-center">
+                    <p className="text-gray-600 text-sm">
+                      Don't have an account?{' '}
+                      <span className="text-blue-600 font-semibold">
+                        Sign in to create one
+                      </span>
+                    </p>
+                    <p className="text-gray-500 text-xs mt-2">
+                      New users will be guided to complete their profile
                     </p>
                   </div>
                 </div>
 
+                {/* Features */}
+                <div className="mt-8 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <i className="ri-shield-check-line text-green-500 mt-1 flex-shrink-0"></i>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Secure Login</p>
+                      <p className="text-xs text-gray-600">Google OAuth 2.0 secured</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <i className="ri-time-line text-blue-500 mt-1 flex-shrink-0"></i>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Quick Setup</p>
+                      <p className="text-xs text-gray-600">Get started in seconds</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <i className="ri-profile-line text-purple-500 mt-1 flex-shrink-0"></i>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Profile Setup</p>
+                      <p className="text-xs text-gray-600">Complete your profile with ease</p>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Security Note */}
                 <div className="mt-8 text-center">

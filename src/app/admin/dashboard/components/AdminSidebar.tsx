@@ -36,6 +36,7 @@ export default function AdminSidebar({ activeSection, setActiveSection, onLogout
     { id: 'overview', label: 'Dashboard', icon: 'ri-dashboard-3-line', color: 'from-blue-600 to-blue-700' },
     { id: 'users', label: 'User Management', icon: 'ri-user-settings-line', color: 'from-green-600 to-green-700' },
     { id: 'wallet', label: 'Admin Wallet', icon: 'ri-wallet-3-line', color: 'from-purple-600 to-purple-700' },
+    { id: 'campaigns', label: 'Campaign Management', icon: 'ri-layout-grid-line', color: 'from-cyan-600 to-cyan-700' },
     { id: 'tasks', label: 'Task Management', icon: 'ri-task-line', color: 'from-orange-600 to-orange-700' },
     { id: 'analytics', label: 'Analytics', icon: 'ri-bar-chart-line', color: 'from-indigo-600 to-indigo-700' },
     { id: 'settings', label: 'Settings', icon: 'ri-settings-3-line', color: 'from-gray-600 to-gray-700' }
