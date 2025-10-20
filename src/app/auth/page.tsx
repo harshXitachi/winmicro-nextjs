@@ -74,8 +74,16 @@ export default function Auth() {
     if (!googleLoaded || !window.google) return;
 
     try {
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+      
+      if (!clientId) {
+        console.error('Google Client ID not configured');
+        setError('Google Sign-In not configured. Please contact support.');
+        return;
+      }
+
       window.google.accounts.id.initialize({
-        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+        client_id: clientId,
         callback: handleCredentialResponse,
       });
 
