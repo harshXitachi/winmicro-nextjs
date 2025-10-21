@@ -2,7 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  output: 'standalone',
   images: {
     domains: ['fdjjhpbwbznfoshycydt.supabase.co', 'readdy.ai'],
   },
