@@ -3,7 +3,6 @@ import { db, users, profiles } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { generateToken, setAuthCookie } from '@/lib/auth';
 
-// Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
@@ -25,7 +24,7 @@ export async function GET(request: NextRequest) {
         client_id: process.env.AUTH0_CLIENT_ID,
         client_secret: process.env.AUTH0_CLIENT_SECRET,
         code,
-        redirect_uri: `${process.env.AUTH0_BASE_URL}/api/auth/callback`,
+        redirect_uri: `${process.env.APP_BASE_URL}/api/auth/callback`,
       }),
     });
 
