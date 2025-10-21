@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { createPhonePePayment } from '@/lib/payments/phonepe';
+import { createPhonePePaymentMock } from '@/lib/payments/phonepe-mock';
 import { db, wallet_transactions, users, commission_settings, admin_wallets, profiles } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
@@ -70,14 +71,29 @@ export async function POST(request: NextRequest) {
       .returning();
 
     // Create PhonePe payment request for total payable (amount + commission if any)
-    const phonePeData = await createPhonePePayment(
-      currentUser.userId,
-      transactionId,
-      payableAmount,
-      phoneNumber,
-      `${process.env.NEXT_PUBLIC_APP_URL}/wallet/payment-success?transactionId=${transaction.id}`,
-      `${process.env.NEXT_PUBLIC_API_URL}/api/wallet/phonepe-callback`
-    );
+    const isPhonePeMockMode = process.env.PHONEPE_MOCK_MODE === 'true';
+    
+    let phonePeData;
+    if (isPhonePeMockMode) {
+      console.log('🧪 Using PhonePe MOCK mode for testing');
+      phonePeData = await createPhonePePaymentMock(
+        currentUser.userId,
+        transactionId,
+        payableAmount,
+        phoneNumber,
+        `${process.env.NEXT_PUBLIC_APP_URL}/wallet/payment-success?transactionId=${transaction.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/wallet/phonepe-callback`
+      );
+    } else {
+      phonePeData = await createPhonePePayment(
+        currentUser.userId,
+        transactionId,
+        payableAmount,
+        phoneNumber,
+        `${process.env.NEXT_PUBLIC_APP_URL}/wallet/payment-success?transactionId=${transaction.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/wallet/phonepe-callback`
+      );
+    }
 
     return NextResponse.json({
       success: true,

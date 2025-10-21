@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, wallet_transactions, profiles, admin_wallets } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 import { verifyPhonePePayment } from '@/lib/payments/phonepe';
+import { verifyPhonePePaymentMock } from '@/lib/payments/phonepe-mock';
 
 // PhonePe callback/verification endpoint
 // POST /api/wallet/phonepe-callback
@@ -40,8 +41,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'No pending transaction found or already processed' });
     }
 
-    // Verify with PhonePe status API
-    const verify = await verifyPhonePePayment(merchantTransactionId);
+    // Verify with PhonePe status API (or mock)
+    const isPhonePeMockMode = process.env.PHONEPE_MOCK_MODE === 'true';
+    
+    let verify;
+    if (isPhonePeMockMode) {
+      console.log('🧪 Using PhonePe MOCK verification');
+      verify = await verifyPhonePePaymentMock(merchantTransactionId);
+    } else {
+      verify = await verifyPhonePePayment(merchantTransactionId);
+    }
+    
     const normalizedStatus = (verify.status || '').toUpperCase();
     const isSuccess = normalizedStatus === 'COMPLETED' || normalizedStatus === 'SUCCESS';
 
