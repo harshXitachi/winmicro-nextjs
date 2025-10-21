@@ -1,16 +1,10 @@
+import { handleCallback, getSession } from '@auth0/nextjs-auth0';
 import { NextRequest, NextResponse } from 'next/server';
-import { auth0 } from '@/lib/auth0';
 import { db, users, profiles } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
-export async function GET(request: NextRequest) {
+export const GET = handleCallback(async (req: NextRequest, session) => {
   try {
-    // Handle Auth0 callback
-    const response = await auth0.handleCallback()(request);
-    
-    // Get the authenticated user from Auth0
-    const session = await auth0.getSession(request, response);
-    
     if (session?.user) {
       const auth0User = session.user;
       
@@ -41,9 +35,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return response;
+    return session;
   } catch (error: any) {
     console.error('Auth0 callback error:', error);
-    return NextResponse.redirect(new URL('/auth?error=callback_failed', request.url));
+    throw error;
   }
-}
+});
