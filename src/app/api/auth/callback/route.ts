@@ -3,6 +3,10 @@ import { db, users, profiles } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { generateToken, setAuthCookie } from '@/lib/auth';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

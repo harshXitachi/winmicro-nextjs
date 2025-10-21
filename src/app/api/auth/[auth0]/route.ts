@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // This route handles Auth0 authentication endpoints
 // For now, redirect to the main auth endpoints
 export async function GET(request: NextRequest) {
