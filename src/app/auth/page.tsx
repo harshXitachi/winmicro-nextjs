@@ -1,116 +1,32 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Script from 'next/script';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '@/components/feature/Navbar';
 import Footer from '@/components/feature/Footer';
 
-declare global {
-  interface Window {
-    google: any;
-  }
-}
-
 export default function Auth() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [googleLoaded, setGoogleLoaded] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/auth/me', {
-          credentials: 'include',
-        });
-        if (response.ok) {
-          router.push('/dashboard');
-        }
-      } catch (err) {
-        // Not logged in, continue
-      }
-    };
+    // Check for error in URL
+    const errorParam = searchParams?.get('error');
+    if (errorParam) {
+      setError('Authentication failed. Please try again.');
+    }
+  }, [searchParams]);
 
-    checkAuth();
-  }, [router]);
-
-  const handleCredentialResponse = async (response: any) => {
+  const handleLogin = () => {
     setLoading(true);
-    setError('');
-
-    try {
-      const result = await fetch('/api/auth/google/callback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken: response.credential }),
-        credentials: 'include',
-      });
-
-      const data = await result.json();
-
-      if (!result.ok) {
-        setError(data.error || 'Authentication failed');
-        setLoading(false);
-        return;
-      }
-
-      // If new user, redirect to profile setup
-      if (data.isNewUser) {
-        window.location.replace('/profile-setup');
-      } else {
-        // Existing user, redirect to dashboard
-        window.location.replace('/dashboard');
-      }
-    } catch (err: any) {
-      console.error('Google auth error:', err);
-      setError(err.message || 'Authentication failed');
-      setLoading(false);
-    }
+    // Redirect to Auth0 login
+    window.location.href = '/api/auth/login';
   };
-
-  useEffect(() => {
-    if (!googleLoaded || !window.google) return;
-
-    try {
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-      
-      if (!clientId) {
-        console.error('Google Client ID not configured');
-        setError('Google Sign-In not configured. Please contact support.');
-        return;
-      }
-
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleCredentialResponse,
-      });
-
-      window.google.accounts.id.renderButton(
-        document.getElementById('google-signin-button'),
-        {
-          theme: 'outline',
-          size: 'large',
-          width: '100%',
-          text: 'signin_with',
-        }
-      );
-    } catch (err: any) {
-      console.error('Error initializing Google Sign-In:', err);
-      setError('Failed to load Google Sign-In');
-    }
-  }, [googleLoaded]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <Script
-        src="https://accounts.google.com/gsi/client"
-        async
-        defer
-        onLoad={() => setGoogleLoaded(true)}
-      />
-      
       <Navbar />
 
       <main className="pt-20 pb-16">
@@ -159,19 +75,25 @@ export default function Auth() {
                     </div>
                   )}
 
-                  {/* Google Sign-In Button */}
+                  {/* Auth0 Sign-In Button */}
                   <div className="space-y-4">
-                    <div
-                      id="google-signin-button"
-                      className="w-full"
-                      style={{ minHeight: '50px' }}
-                    />
-
-                    {!googleLoaded && (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="w-5 h-5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
-                      </div>
-                    )}
+                    <button
+                      onClick={handleLogin}
+                      disabled={loading}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Signing in...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="ri-login-box-line text-xl"></i>
+                          <span>Sign in with Auth0</span>
+                        </>
+                      )}
+                    </button>
                   </div>
 
                   {/* Divider */}
@@ -204,7 +126,7 @@ export default function Auth() {
                     <i className="ri-shield-check-line text-green-500 mt-1 flex-shrink-0"></i>
                     <div>
                       <p className="text-sm font-medium text-gray-900">Secure Login</p>
-                      <p className="text-xs text-gray-600">Google OAuth 2.0 secured</p>
+                      <p className="text-xs text-gray-600">Auth0 secured authentication</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
