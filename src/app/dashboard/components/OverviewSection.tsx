@@ -102,7 +102,7 @@ export default function OverviewSection() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">
-            Welcome Back, {user?.user_metadata?.full_name?.split(' ')[0] || 'User'}
+            Welcome Back, {profile?.first_name || user?.email?.split('@')[0] || 'User'}
           </h1>
           <p className="text-gray-600">Ready to earn more today?</p>
         </div>
