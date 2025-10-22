@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
 
 interface WalletBalance {
   inr: string;
@@ -37,6 +38,7 @@ interface CommissionSettings {
 export default function WalletPage() {
   const router = useRouter();
   const { user, profile, loading } = useAuth();
+  const { user: firebaseUser } = useFirebaseAuth();
   const [balance, setBalance] = useState<WalletBalance>({
     inr: '0.00',
     usd: '0.00',
@@ -97,11 +99,22 @@ export default function WalletPage() {
       return;
     }
 
+    if (!firebaseUser) {
+      alert('Please log in to continue');
+      return;
+    }
+
     setIsProcessing(true);
     try {
+      // Get Firebase ID token
+      const idToken = await firebaseUser.getIdToken();
+      
       const res = await fetch('/api/wallet/deposit-inr', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           amount: parseFloat(depositAmount),
           phoneNumber: phoneNumber,
@@ -134,11 +147,22 @@ export default function WalletPage() {
       return;
     }
 
+    if (!firebaseUser) {
+      alert('Please log in to continue');
+      return;
+    }
+
     setIsProcessing(true);
     try {
+      // Get Firebase ID token
+      const idToken = await firebaseUser.getIdToken();
+      
       const res = await fetch('/api/wallet/deposit-usd', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           amount: parseFloat(depositAmount),
         }),
