@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import { AuthProvider } from '@/components/providers/AuthProvider'
+import { FirebaseAuthProvider } from '@/context/FirebaseAuthContext'
 import ChatWidget from '@/components/ChatWidget'
 import Script from 'next/script'
 
@@ -30,10 +30,10 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet" />
       </head>
       <body className={inter.className}>
-        <AuthProvider>
+        <FirebaseAuthProvider>
           {children}
           <ChatWidget />
-        </AuthProvider>
+        </FirebaseAuthProvider>
         
         {/* GSAP Scripts */}
         <Script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js" strategy="afterInteractive" />

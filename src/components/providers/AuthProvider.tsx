@@ -1,14 +1,9 @@
 'use client';
 
 import React from 'react';
-import { AuthContext, useAuthProvider } from '@/hooks/useAuth';
+import { FirebaseAuthProvider } from '@/context/FirebaseAuthContext';
 
+// Re-export FirebaseAuthProvider as AuthProvider for backward compatibility
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const auth = useAuthProvider();
-
-  return (
-    <AuthContext.Provider value={auth}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <FirebaseAuthProvider>{children}</FirebaseAuthProvider>;
 }

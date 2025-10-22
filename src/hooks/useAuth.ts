@@ -1,58 +1,28 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext } from 'react';
-import { getUserProfile, isAdmin as checkIsAdmin, getCurrentUser } from '@/lib/supabase';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
 
-interface User {
-  id: string;
-  email: string;
-  user_metadata?: any;
-  created_at?: string;
-}
-
-interface UserProfile {
-  user_id: string;
-  first_name: string;
-  last_name: string;
-  username?: string;
-  email: string;
-  avatar_url?: string;
-  bio?: string;
-  skills?: string[];
-  rating?: number;
-  total_earnings?: number;
-  completed_tasks?: number;
-  success_rate?: number;
-  response_time?: string;
-  level?: number;
-  experience_points?: number;
-  wallet_balance?: number;
-  wallet_balance_inr?: string;
-  wallet_balance_usd?: string;
-  wallet_balance_usdt?: string;
-  default_currency?: string;
-  role?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  profile: UserProfile | null;
-  loading: boolean;
-  isAdmin: boolean;
-  refreshProfile: () => Promise<void>;
-}
-
-export const AuthContext = createContext<AuthContextType | null>(null);
-
+// Re-export Firebase auth hook as useAuth for backward compatibility
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const firebaseAuth = useFirebaseAuth();
+  
+  // Transform Firebase user to match old interface
+  return {
+    user: firebaseAuth.user ? {
+      id: firebaseAuth.user.uid,
+      email: firebaseAuth.user.email || '',
+      user_metadata: {},
+      created_at: firebaseAuth.user.metadata.creationTime,
+    } : null,
+    profile: firebaseAuth.profile,
+    loading: firebaseAuth.loading,
+    isAdmin: firebaseAuth.isAdmin,
+    refreshProfile: firebaseAuth.refreshProfile,
+  };
 };
+
+// Keep the old exports for compatibility
+export const AuthContext = null;
 
 export const useAuthProvider = (): AuthContextType => {
   const [user, setUser] = useState<User | null>(null);

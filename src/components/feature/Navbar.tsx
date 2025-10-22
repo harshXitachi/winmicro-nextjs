@@ -3,11 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import { signOut } from '@/lib/supabase';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
 
 export default function Navbar() {
-  const { user, profile } = useAuth();
+  const { user, profile, signOut } = useFirebaseAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -16,11 +15,7 @@ export default function Navbar() {
     try {
       console.log('🔄 Signing out...');
       await signOut();
-      
-      // Force page reload to ensure auth state updates
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
+      router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -86,7 +81,7 @@ export default function Navbar() {
                   >
                     <div className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full flex items-center justify-center">
                       <span className="text-white text-sm font-bold">
-                        {profile?.first_name?.charAt(0) || user.email?.charAt(0) || 'U'}
+                        {profile?.first_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                       </span>
                     </div>
                     <i className="ri-arrow-down-s-line text-gray-600"></i>
@@ -99,7 +94,7 @@ export default function Navbar() {
                         <p className="font-semibold text-gray-900">
                           {profile ? `${profile.first_name} ${profile.last_name}` : 'User'}
                         </p>
-                        <p className="text-sm text-gray-600">{user.email}</p>
+                        <p className="text-sm text-gray-600">{user?.email}</p>
                       </div>
                       <div className="py-2">
                         <Link

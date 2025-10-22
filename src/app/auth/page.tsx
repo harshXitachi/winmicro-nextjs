@@ -1,29 +1,71 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/feature/Navbar';
 import Footer from '@/components/feature/Footer';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
 
 function AuthContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { user, loading: authLoading, signInWithGoogle, signInWithEmail } = useFirebaseAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showEmailLogin, setShowEmailLogin] = useState(false);
 
+  // Redirect if user is already logged in
   useEffect(() => {
-    // Check for error in URL
-    const errorParam = searchParams?.get('error');
-    if (errorParam) {
-      setError('Authentication failed. Please try again.');
+    if (!authLoading && user) {
+      router.push('/dashboard');
     }
-  }, [searchParams]);
+  }, [user, authLoading, router]);
 
-  const handleLogin = () => {
+  const handleGoogleLogin = async () => {
     setLoading(true);
-    // Redirect to Auth0 login
-    window.location.href = '/api/auth/login';
+    setError('');
+    try {
+      await signInWithGoogle();
+      // Wait a bit for auth state to update, then redirect
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500);
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      setError(err.message || 'Failed to sign in with Google');
+      setLoading(false);
+    }
   };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      await signInWithEmail(email, password);
+      // Wait a bit for auth state to update, then redirect
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500);
+    } catch (err: any) {
+      console.error('Email login error:', err);
+      setError(err.message || 'Failed to sign in');
+      setLoading(false);
+    }
+  };
+
+  // Show loading while checking auth state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -75,25 +117,84 @@ function AuthContent() {
                     </div>
                   )}
 
-                  {/* Auth0 Sign-In Button */}
+                {/* Google Sign-In Button */}
                   <div className="space-y-4">
                     <button
-                      onClick={handleLogin}
+                      onClick={handleGoogleLogin}
                       disabled={loading}
-                      className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl"
+                      className="w-full px-6 py-4 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl"
                     >
                       {loading ? (
                         <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <div className="w-5 h-5 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
                           <span>Signing in...</span>
                         </>
                       ) : (
                         <>
-                          <i className="ri-login-box-line text-xl"></i>
-                          <span>Sign in with Auth0</span>
+                          <i className="ri-google-fill text-xl text-red-500"></i>
+                          <span>Continue with Google</span>
                         </>
                       )}
                     </button>
+                    
+                    {!showEmailLogin && (
+                      <button
+                        onClick={() => setShowEmailLogin(true)}
+                        className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl"
+                      >
+                        <i className="ri-mail-line text-xl"></i>
+                        <span>Sign in with Email</span>
+                      </button>
+                    )}
+                    
+                    {showEmailLogin && (
+                      <form onSubmit={handleEmailLogin} className="space-y-4 mt-4">
+                        <div>
+                          <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="Email address"
+                            required
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Password"
+                            required
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={loading}
+                          className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl"
+                        >
+                          {loading ? (
+                            <>
+                              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              <span>Signing in...</span>
+                            </>
+                          ) : (
+                            <>
+                              <i className="ri-login-box-line text-xl"></i>
+                              <span>Sign in</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowEmailLogin(false)}
+                          className="w-full text-sm text-gray-600 hover:text-gray-800"
+                        >
+                          Back to other options
+                        </button>
+                      </form>
+                    )}
                   </div>
 
                   {/* Divider */}
@@ -110,8 +211,8 @@ function AuthContent() {
                   <div className="text-center">
                     <p className="text-gray-600 text-sm">
                       Don't have an account?{' '}
-                      <span className="text-blue-600 font-semibold">
-                        Sign in to create one
+                      <span className="text-blue-600 font-semibold cursor-pointer" onClick={() => router.push('/signup')}>
+                        Sign up here
                       </span>
                     </p>
                     <p className="text-gray-500 text-xs mt-2">
@@ -126,7 +227,7 @@ function AuthContent() {
                     <i className="ri-shield-check-line text-green-500 mt-1 flex-shrink-0"></i>
                     <div>
                       <p className="text-sm font-medium text-gray-900">Secure Login</p>
-                      <p className="text-xs text-gray-600">Auth0 secured authentication</p>
+                      <p className="text-xs text-gray-600">Firebase secured authentication</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">

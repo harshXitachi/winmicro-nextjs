@@ -1,0 +1,265 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Navbar from '@/components/feature/Navbar';
+import Footer from '@/components/feature/Footer';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
+
+export default function SignUp() {
+  const router = useRouter();
+  const { user, loading: authLoading, signUpWithEmail, signInWithGoogle } = useFirebaseAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, authLoading, router]);
+
+  const handleGoogleSignUp = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await signInWithGoogle();
+      // Wait a bit for auth state to update, then redirect
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500);
+    } catch (err: any) {
+      console.error('Google signup error:', err);
+      setError(err.message || 'Failed to sign up with Google');
+      setLoading(false);
+    }
+  };
+
+  const handleEmailSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      await signUpWithEmail(email, password);
+      // Wait a bit for auth state to update, then redirect
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500);
+    } catch (err: any) {
+      console.error('Email signup error:', err);
+      setError(err.message || 'Failed to sign up');
+      setLoading(false);
+    }
+  };
+
+  // Show loading while checking auth state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <Navbar />
+
+      <main className="pt-20 pb-16">
+        <div className="px-6 lg:px-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              {/* Left Side - Image */}
+              <div className="hidden lg:block">
+                <div className="relative">
+                  <img
+                    src="https://readdy.ai/api/search-image?query=Modern%20professional%20workspace%20with%20people%20working%20on%20laptops%20and%20tablets%2C%20collaborative%20environment%2C%20bright%20office%20space%20with%20large%20windows%2C%20contemporary%20design%2C%20business%20team%20collaboration%2C%20digital%20workspace%2C%20clean%20minimalist%20aesthetic%2C%20natural%20lighting%2C%20productivity%20and%20success%20theme&width=600&height=700&seq=auth-hero&orientation=portrait"
+                    alt="Professional workspace"
+                    className="w-full h-[700px] object-cover object-top rounded-3xl shadow-2xl"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-blue-600/20 to-transparent rounded-3xl"></div>
+                  <div className="absolute bottom-8 left-8 right-8 text-white">
+                    <h2 className="text-3xl font-bold mb-4">Start your journey today</h2>
+                    <p className="text-lg opacity-90">Join thousands of professionals earning with micro tasks</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Side - Form */}
+              <div className="w-full max-w-md mx-auto lg:mx-0">
+                {/* Header */}
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl mb-6 shadow-xl">
+                    <i className="ri-user-add-line text-3xl text-white"></i>
+                  </div>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-4">
+                    Create Account
+                  </h1>
+                  <p className="text-gray-600 text-lg">
+                    Sign up to start earning with MicroWin
+                  </p>
+                </div>
+
+                {/* Form Card */}
+                <div className="bg-white/90 backdrop-blur-sm border border-gray-200/50 rounded-3xl p-8 shadow-2xl shadow-gray-900/10">
+                  {error && (
+                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl">
+                      <div className="flex items-center">
+                        <i className="ri-error-warning-line text-red-500 mr-3 text-lg"></i>
+                        <p className="text-red-600 text-sm font-medium">{error}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Google Sign-Up Button */}
+                  <button
+                    onClick={handleGoogleSignUp}
+                    disabled={loading}
+                    className="w-full px-6 py-4 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl mb-4"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
+                        <span>Signing up...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="ri-google-fill text-xl text-red-500"></i>
+                        <span>Continue with Google</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Divider */}
+                  <div className="relative my-8">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">or sign up with email</span>
+                    </div>
+                  </div>
+
+                  {/* Email Sign-Up Form */}
+                  <form onSubmit={handleEmailSignUp} className="space-y-4">
+                    <div>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Email address"
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Password (min 6 characters)"
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm password"
+                        required
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Creating account...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="ri-user-add-line text-xl"></i>
+                          <span>Create Account</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+
+                  {/* Divider */}
+                  <div className="relative my-8">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">or</span>
+                    </div>
+                  </div>
+
+                  {/* Sign In Link */}
+                  <div className="text-center">
+                    <p className="text-gray-600 text-sm">
+                      Already have an account?{' '}
+                      <span className="text-blue-600 font-semibold cursor-pointer" onClick={() => router.push('/auth')}>
+                        Sign in here
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Features */}
+                <div className="mt-8 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <i className="ri-shield-check-line text-green-500 mt-1 flex-shrink-0"></i>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Secure & Safe</p>
+                      <p className="text-xs text-gray-600">Your data is protected with Firebase authentication</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <i className="ri-time-line text-blue-500 mt-1 flex-shrink-0"></i>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Quick Setup</p>
+                      <p className="text-xs text-gray-600">Get started in just a few steps</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <i className="ri-money-dollar-circle-line text-purple-500 mt-1 flex-shrink-0"></i>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Start Earning</p>
+                      <p className="text-xs text-gray-600">Complete tasks and get paid instantly</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
+}

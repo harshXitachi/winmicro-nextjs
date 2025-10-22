@@ -23,65 +23,24 @@ async function verifyToken(token: string): Promise<JWTPayload | null> {
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   
-  // Admin routes require admin session, not user auth
-  const isAdminRoute = path.startsWith('/admin');
-  const isAdminAuthPage = path === '/admin/auth';
-  const isAdminDashboard = path.startsWith('/admin/dashboard') || path.startsWith('/admin/commission') || path.startsWith('/admin/settings');
+  // Firebase Auth: Authentication is handled client-side
+  // We'll skip server-side JWT verification for now and let Firebase handle it
+  // Protected routes will be checked on the client-side via FirebaseAuthContext
   
-  const isProtectedRoute = path.startsWith('/dashboard') || 
-                           (isAdminRoute && !isAdminAuthPage) ||
-                           path.startsWith('/profile-setup') ||
-                           path.startsWith('/settings');
-
-  const authToken = request.cookies.get('auth_token');
-  let userRole: string | null = null;
-  let isAuthenticated = false;
-
-  if (authToken) {
-    const decoded = await verifyToken(authToken.value);
-    if (decoded) {
-      isAuthenticated = true;
-      userRole = decoded.role;
-    }
-  }
-
-  // Handle admin routes
-  if (isAdminDashboard) {
-    // Check for admin session in localStorage (client-side)
-    // This is validated on client-side, but we can add server-side validation if needed
-    // For now, allow access and let client-side handle session validation
-    return NextResponse.next();
-  }
-
+  // Only handle admin-specific routing
+  const isAdminRoute = path.startsWith('/admin');
+  
   // Redirect /admin to /admin/auth
   if (path === '/admin' || path === '/admin/') {
     return NextResponse.redirect(new URL('/admin/auth', request.url));
   }
 
-  // Protected user routes
-  if (isProtectedRoute && !isAdminRoute) {
-    if (!isAuthenticated) {
-      return NextResponse.redirect(new URL('/auth', request.url));
-    }
-  }
-
-  if (path === '/auth' && isAuthenticated) {
-    if (userRole === 'admin') {
-      return NextResponse.redirect(new URL('/admin/auth', request.url));
-    } else {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-  }
-
+  // For all other routes, let client-side Firebase auth handle protection
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
-    '/admin/:path*',
-    '/profile-setup',
-    '/settings/:path*',
-    '/auth'
+    '/admin/:path*'
   ],
 };
