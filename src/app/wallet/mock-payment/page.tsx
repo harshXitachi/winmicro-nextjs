@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 
-export default function MockPaymentPage() {
+function MockPaymentContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [countdown, setCountdown] = useState(5);
@@ -157,5 +157,20 @@ export default function MockPaymentPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function MockPaymentPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Clock className="w-12 h-12 text-purple-600 mx-auto animate-pulse" />
+          <p className="mt-4 text-gray-600">Loading payment...</p>
+        </div>
+      </div>
+    }>
+      <MockPaymentContent />
+    </Suspense>
   );
 }
