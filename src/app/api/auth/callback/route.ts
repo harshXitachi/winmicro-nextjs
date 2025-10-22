@@ -15,6 +15,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth?error=no_code', request.url));
     }
 
+    // Get the base URL from environment or request headers
+    const baseUrl = process.env.APP_BASE_URL || 
+                    process.env.AUTH0_BASE_URL || 
+                    `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+
     // Exchange code for tokens
     const tokenResponse = await fetch(`https://${process.env.AUTH0_DOMAIN}/oauth/token`, {
       method: 'POST',
@@ -24,7 +29,7 @@ export async function GET(request: NextRequest) {
         client_id: process.env.AUTH0_CLIENT_ID,
         client_secret: process.env.AUTH0_CLIENT_SECRET,
         code,
-        redirect_uri: `${process.env.APP_BASE_URL}/api/auth/callback`,
+        redirect_uri: `${baseUrl}/api/auth/callback`,
       }),
     });
 
