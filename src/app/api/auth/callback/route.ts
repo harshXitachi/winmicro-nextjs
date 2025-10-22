@@ -15,10 +15,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth?error=no_code', request.url));
     }
 
-    // Get the base URL from environment or request headers
+    // Get the base URL - prefer APP_BASE_URL, fallback to request host
     const baseUrl = process.env.APP_BASE_URL || 
-                    process.env.AUTH0_BASE_URL || 
                     `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+
+    console.log('Callback redirect URL:', `${baseUrl}/api/auth/callback`);
 
     // Exchange code for tokens
     const tokenResponse = await fetch(`https://${process.env.AUTH0_DOMAIN}/oauth/token`, {

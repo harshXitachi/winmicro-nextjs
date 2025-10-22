@@ -4,10 +4,11 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  // Get the base URL from environment or request headers
+  // Get the base URL - prefer APP_BASE_URL, fallback to request host
   const baseUrl = process.env.APP_BASE_URL || 
-                  process.env.AUTH0_BASE_URL || 
                   `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+  
+  console.log('Login redirect URL:', `${baseUrl}/api/auth/callback`);
   
   const loginUrl = new URL(`https://${process.env.AUTH0_DOMAIN}/authorize`);
   loginUrl.searchParams.set('client_id', process.env.AUTH0_CLIENT_ID!);
