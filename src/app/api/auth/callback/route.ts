@@ -15,9 +15,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth?error=no_code', request.url));
     }
 
-    // Get the base URL - prefer APP_BASE_URL, fallback to request host
-    const baseUrl = process.env.APP_BASE_URL || 
-                    `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    // Get the base URL - prefer APP_BASE_URL, then check forwarded headers for Amplify
+    let baseUrl = process.env.APP_BASE_URL;
+    
+    if (!baseUrl) {
+      // Check for forwarded host (Amplify/CloudFront)
+      const forwardedHost = request.headers.get('x-forwarded-host');
+      const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+      
+      if (forwardedHost) {
+        baseUrl = `${forwardedProto}://${forwardedHost}`;
+      } else {
+        baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+      }
+    }
 
     console.log('Callback redirect URL:', `${baseUrl}/api/auth/callback`);
 

@@ -4,11 +4,24 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  // Get the base URL - prefer APP_BASE_URL, fallback to request host
-  const baseUrl = process.env.APP_BASE_URL || 
-                  `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+  // Get the base URL - prefer APP_BASE_URL, then check forwarded headers for Amplify
+  let baseUrl = process.env.APP_BASE_URL;
+  
+  if (!baseUrl) {
+    // Check for forwarded host (Amplify/CloudFront)
+    const forwardedHost = request.headers.get('x-forwarded-host');
+    const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+    
+    if (forwardedHost) {
+      baseUrl = `${forwardedProto}://${forwardedHost}`;
+    } else {
+      baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    }
+  }
   
   console.log('APP_BASE_URL env var:', process.env.APP_BASE_URL);
+  console.log('x-forwarded-host:', request.headers.get('x-forwarded-host'));
+  console.log('x-forwarded-proto:', request.headers.get('x-forwarded-proto'));
   console.log('Request host:', `${request.nextUrl.protocol}//${request.nextUrl.host}`);
   console.log('Final baseUrl used:', baseUrl);
   console.log('Login redirect URL:', `${baseUrl}/api/auth/callback`);
