@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDarkMode } from '@/context/DarkModeContext';
 import { useAuth } from '../../../hooks/useAuth';
-import { signOut } from '../../../lib/supabase';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
 
 interface SidebarProps {
   activeSection: string;
@@ -12,7 +12,8 @@ interface SidebarProps {
 
 export default function Sidebar({ activeSection, setActiveSection }: SidebarProps) {
   const { isDarkMode, toggleDarkMode } = useDarkMode();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const { signOut } = useFirebaseAuth();
   const router = useRouter();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -70,22 +71,22 @@ export default function Sidebar({ activeSection, setActiveSection }: SidebarProp
             <div className="flex items-center space-x-4">
               <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
                 <span className="text-white font-bold text-xl">
-                  {user?.user_metadata?.first_name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
+                  {profile?.first_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
                 </span>
               </div>
               <div className="flex-1">
                 <h3 className={`font-semibold ${
                   isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {user?.user_metadata?.first_name && user?.user_metadata?.last_name 
-                    ? `${user.user_metadata.first_name} ${user.user_metadata.last_name}`
-                    : user?.user_metadata?.username || user?.email?.split('@')[0] || 'User'
+                  {profile?.first_name && profile?.last_name
+                    ? `${profile.first_name} ${profile.last_name}`
+                    : profile?.username || user?.email?.split('@')[0] || 'User'
                   }
                 </h3>
                 <p className={`text-sm ${
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
                 }`}>
-                  @{user?.user_metadata?.username || user?.email?.split('@')[0] || 'username'}
+                  @{profile?.username || user?.email?.split('@')[0] || 'username'}
                 </p>
                 <div className="flex items-center mt-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
