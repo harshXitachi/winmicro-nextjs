@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
+import { makeAuthenticatedRequest } from '@/lib/api-client-auth';
 
 interface WalletBalance {
   inr: string;
@@ -106,15 +107,10 @@ export default function WalletPage() {
 
     setIsProcessing(true);
     try {
-      // Get Firebase ID token
-      const idToken = await firebaseUser.getIdToken();
+      console.log('🔄 Initiating INR deposit...');
       
-      const res = await fetch('/api/wallet/deposit-inr', {
+      const res = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/deposit-inr', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
-        },
         body: JSON.stringify({
           amount: parseFloat(depositAmount),
           phoneNumber: phoneNumber,
@@ -122,8 +118,10 @@ export default function WalletPage() {
       });
 
       const data = await res.json();
+      console.log('📦 Response:', { status: res.status, data });
 
       if (!res.ok) {
+        console.error('❌ Deposit failed:', data.error);
         alert(data.error || 'Failed to initiate deposit');
         return;
       }
@@ -154,23 +152,20 @@ export default function WalletPage() {
 
     setIsProcessing(true);
     try {
-      // Get Firebase ID token
-      const idToken = await firebaseUser.getIdToken();
+      console.log('🔄 Initiating USD deposit...', { firebaseUser: !!firebaseUser });
       
-      const res = await fetch('/api/wallet/deposit-usd', {
+      const res = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/deposit-usd', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
-        },
         body: JSON.stringify({
           amount: parseFloat(depositAmount),
         }),
       });
 
       const data = await res.json();
+      console.log('📦 Response:', { status: res.status, data });
 
       if (!res.ok) {
+        console.error('❌ Deposit failed:', data.error);
         alert(data.error || 'Failed to initiate deposit');
         return;
       }

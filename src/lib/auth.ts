@@ -70,26 +70,49 @@ export async function getCurrentUser(): Promise<JWTPayload | null> {
     const headersList = await headers();
     const authHeader = headersList.get('authorization');
     
+    console.log('🔐 Auth header present:', !!authHeader);
+    
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const idToken = authHeader.substring(7);
+      console.log('🔑 Firebase token found, length:', idToken.length);
+      
       try {
+        // Check if Firebase Admin is initialized
+        if (getApps().length === 0) {
+          console.error('❌ Firebase Admin not initialized!');
+          console.log('Env check:', {
+            hasProjectId: !!process.env.FIREBASE_ADMIN_PROJECT_ID,
+            hasClientEmail: !!process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+            hasPrivateKey: !!process.env.FIREBASE_ADMIN_PRIVATE_KEY,
+          });
+          return null;
+        }
+        
         const decodedToken = await getAuth().verifyIdToken(idToken);
+        console.log('✅ Firebase token verified for user:', decodedToken.uid);
+        
         return {
           userId: decodedToken.uid,
           email: decodedToken.email || '',
           role: 'user', // Default role, can be customized
         };
-      } catch (firebaseError) {
-        console.error('Firebase token verification failed:', firebaseError);
+      } catch (firebaseError: any) {
+        console.error('❌ Firebase token verification failed:', firebaseError.message);
+        console.error('Error code:', firebaseError.code);
       }
+    } else {
+      console.log('⚠️ No Bearer token in Authorization header');
     }
     
     // Fallback to old JWT token method (for backward compatibility)
     const token = await getAuthToken();
-    if (!token) return null;
+    if (!token) {
+      console.log('⚠️ No JWT token found in cookies either');
+      return null;
+    }
     return await verifyToken(token);
-  } catch (error) {
-    console.error('getCurrentUser error:', error);
+  } catch (error: any) {
+    console.error('❌ getCurrentUser error:', error.message);
     return null;
   }
 }
