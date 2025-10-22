@@ -8,6 +8,9 @@ export async function GET(request: NextRequest) {
   const baseUrl = process.env.APP_BASE_URL || 
                   `${request.nextUrl.protocol}//${request.nextUrl.host}`;
   
+  console.log('APP_BASE_URL env var:', process.env.APP_BASE_URL);
+  console.log('Request host:', `${request.nextUrl.protocol}//${request.nextUrl.host}`);
+  console.log('Final baseUrl used:', baseUrl);
   console.log('Login redirect URL:', `${baseUrl}/api/auth/callback`);
   
   const loginUrl = new URL(`https://${process.env.AUTH0_DOMAIN}/authorize`);
