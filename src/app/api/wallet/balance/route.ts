@@ -3,6 +3,8 @@ import { db, profiles, wallet_transactions, admin_wallets, commission_settings }
 import { getCurrentUser } from '@/lib/auth';
 import { eq, sql } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 type Currency = 'INR' | 'USD' | 'USDT';
 
 export async function PATCH(request: NextRequest) {

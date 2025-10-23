@@ -3,6 +3,8 @@ import { db, campaign_members, campaigns } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/campaigns/[id]/check-membership - Check if user is a member
 export async function GET(
   request: NextRequest,

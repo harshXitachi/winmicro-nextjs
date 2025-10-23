@@ -3,6 +3,8 @@ import { db, users } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // POST - Ban a user
 export async function POST(request: NextRequest) {
   try {

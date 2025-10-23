@@ -4,6 +4,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { eq, sql, desc } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Fetch all users
 export async function GET(request: NextRequest) {
   try {

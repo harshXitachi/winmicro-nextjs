@@ -3,6 +3,8 @@ import { db, tasks } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // DELETE /api/tasks/[id]
 export async function DELETE(
   request: NextRequest,

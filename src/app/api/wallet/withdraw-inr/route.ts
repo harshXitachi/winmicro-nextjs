@@ -3,6 +3,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { db, wallet_transactions, profiles } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/wallet/withdraw-inr
 export async function POST(request: NextRequest) {
   try {

@@ -3,6 +3,8 @@ import { db, users, profiles } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser();

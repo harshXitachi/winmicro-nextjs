@@ -3,6 +3,8 @@ import { db, admin_wallets, commission_settings, wallet_transactions } from '@/l
 import { getCurrentUser } from '@/lib/auth';
 import { eq, desc, and, gte } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Get admin wallet balances and settings
 export async function GET(request: NextRequest) {
   try {

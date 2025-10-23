@@ -3,6 +3,8 @@ import { db, campaign_submissions, campaign_members, campaigns, users, profiles 
 import { getCurrentUser } from '@/lib/auth';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/campaigns/[id]/submissions - Get submissions
 export async function GET(
   request: NextRequest,

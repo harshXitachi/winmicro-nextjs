@@ -3,6 +3,8 @@ import { db, admin_settings } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser();

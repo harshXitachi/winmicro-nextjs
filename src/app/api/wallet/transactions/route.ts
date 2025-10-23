@@ -3,6 +3,8 @@ import { db, wallet_transactions, users } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { eq, desc, sql } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getCurrentUser();

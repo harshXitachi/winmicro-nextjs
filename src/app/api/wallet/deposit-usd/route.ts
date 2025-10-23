@@ -4,6 +4,8 @@ import { createPayPalOrder } from '@/lib/payments/paypal';
 import { db, wallet_transactions, users, commission_settings } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/wallet/deposit-usd
 export async function POST(request: NextRequest) {
   try {

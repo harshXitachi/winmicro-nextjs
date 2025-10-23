@@ -3,6 +3,8 @@ import { db, tasks, applications, users, profiles } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { eq, and, desc, sql, ilike, or, gte, lte } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/tasks - Get all tasks with optional filters
 export async function GET(request: NextRequest) {
   try {

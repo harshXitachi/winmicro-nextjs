@@ -3,6 +3,8 @@ import { db, campaign_chat_messages, campaign_members, campaigns, users } from '
 import { getCurrentUser } from '@/lib/auth';
 import { eq, and, desc, sql } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/campaigns/[id]/chat - Get chat messages
 export async function GET(
   request: NextRequest,

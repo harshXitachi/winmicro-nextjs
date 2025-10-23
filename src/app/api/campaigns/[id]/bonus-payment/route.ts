@@ -3,6 +3,8 @@ import { db, campaigns, campaign_bonus_payments, campaign_members, wallet_transa
 import { getCurrentUser } from '@/lib/auth';
 import { eq, and, sql } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/campaigns/[id]/bonus-payment - Send bonus payment to worker
 export async function POST(
   request: NextRequest,

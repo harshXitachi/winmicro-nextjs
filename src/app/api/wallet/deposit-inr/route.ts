@@ -5,6 +5,8 @@ import { createPhonePePaymentMock } from '@/lib/payments/phonepe-mock';
 import { db, wallet_transactions, users, commission_settings, admin_wallets, profiles } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/wallet/deposit-inr
 export async function POST(request: NextRequest) {
   try {
