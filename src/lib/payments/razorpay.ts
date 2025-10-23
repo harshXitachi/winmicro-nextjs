@@ -1,6 +1,6 @@
 // Razorpay Gateway Configuration
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'RKJJRRN5QBmU9V';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'rzp_live_RMEyuyGizJQ9DK';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
 const RAZORPAY_MODE = process.env.RAZORPAY_MODE === 'test' ? 'test' : 'live';
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
 
@@ -61,7 +61,11 @@ export async function createRazorpayOrder(
     
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
       console.error('❌ Razorpay credentials missing!');
-      throw new Error('Razorpay credentials not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
+      console.error('Please add these environment variables to AWS Amplify:');
+      console.error('RAZORPAY_KEY_ID=your_key_id');
+      console.error('RAZORPAY_KEY_SECRET=your_key_secret');
+      console.error('RAZORPAY_MODE=live');
+      throw new Error('Razorpay credentials not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables in AWS Amplify Console.');
     }
 
     const orderData = {
