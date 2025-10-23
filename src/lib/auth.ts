@@ -66,15 +66,25 @@ export async function getAuthToken(): Promise<string | null> {
 
 export async function getCurrentUser(): Promise<JWTPayload | null> {
   try {
-    // First, try to get Firebase ID token from Authorization header
     const headersList = await headers();
-    const authHeader = headersList.get('authorization');
     
-    console.log('🔐 Auth header present:', !!authHeader);
+    // Try custom header first (AWS Amplify workaround)
+    let idToken = headersList.get('x-firebase-token');
     
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const idToken = authHeader.substring(7);
-      console.log('🔑 Firebase token found, length:', idToken.length);
+    if (idToken) {
+      console.log('🔑 Firebase token from x-firebase-token header, length:', idToken.length);
+    } else {
+      // Fallback to Authorization header
+      const authHeader = headersList.get('authorization');
+      console.log('🔐 Auth header present:', !!authHeader);
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        idToken = authHeader.substring(7);
+        console.log('🔑 Firebase token from Authorization header, length:', idToken.length);
+      }
+    }
+    
+    if (idToken) {
       
       try {
         // Check if Firebase Admin is initialized

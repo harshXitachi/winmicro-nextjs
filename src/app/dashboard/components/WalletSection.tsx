@@ -184,6 +184,11 @@ export default function WalletSection() {
           return;
         }
 
+        // Store transaction ID for callback processing
+        if (data.transactionId) {
+          localStorage.setItem('pending_transaction_id', data.transactionId);
+        }
+
         // Redirect to PayPal approval URL
         if (data.approvalUrl) {
           window.location.href = data.approvalUrl;

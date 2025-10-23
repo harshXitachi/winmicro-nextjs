@@ -57,13 +57,16 @@ interface PayPalCaptureResponse {
 async function getAccessToken(): Promise<string> {
   // Return cached token if valid
   if (cachedAccessToken && tokenExpiry > Date.now()) {
+    console.log('✅ Using cached PayPal token');
     return cachedAccessToken;
   }
 
   try {
     if (!PAYPAL_CLIENT_ID || !PAYPAL_SECRET) {
+      console.error('❌ PayPal credentials missing!');
       throw new Error('PayPal credentials not configured. Please set PAYPAL_CLIENT_ID and PAYPAL_SECRET.');
     }
+    console.log(`🔐 Getting PayPal token from ${PAYPAL_API_BASE} (mode: ${PAYPAL_MODE})...`);
     const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString('base64');
 
     const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
@@ -78,11 +81,13 @@ async function getAccessToken(): Promise<string> {
     const data: PayPalTokenResponse = await response.json();
 
     if (!response.ok) {
+      console.error('❌ PayPal token error:', data);
       throw new Error('Failed to get PayPal access token');
     }
 
     cachedAccessToken = data.access_token;
     tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // Cache for expires_in - 1 minute
+    console.log('✅ PayPal token obtained successfully');
 
     return data.access_token;
   } catch (error) {
@@ -100,6 +105,7 @@ export async function createPayPalOrder(
   description: string
 ): Promise<{ orderId: string; approvalUrl: string }> {
   try {
+    console.log(`💰 Creating PayPal order for $${amount} (user: ${userId})`);
     const accessToken = await getAccessToken();
 
     const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders`, {
@@ -134,8 +140,10 @@ export async function createPayPalOrder(
     const data: PayPalOrderResponse = await response.json();
 
     if (!response.ok || data.status !== 'CREATED') {
+      console.error('❌ PayPal order creation failed:', data);
       throw new Error('Failed to create PayPal order');
     }
+    console.log('✅ PayPal order created:', data.id);
 
     const approvalLink = data.links.find((link) => link.rel === 'approve');
     if (!approvalLink) {
@@ -159,6 +167,7 @@ export async function capturePayPalOrder(
   orderId: string
 ): Promise<{ transactionId: string; status: string; amount: number; payerEmail: string }> {
   try {
+    console.log(`🔒 Capturing PayPal order: ${orderId}`);
     const accessToken = await getAccessToken();
 
     const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderId}/capture`, {
@@ -172,8 +181,10 @@ export async function capturePayPalOrder(
     const data: PayPalCaptureResponse = await response.json();
 
     if (!response.ok) {
+      console.error('❌ PayPal capture failed:', data);
       throw new Error('Failed to capture PayPal payment');
     }
+    console.log('✅ PayPal payment captured:', data.id);
 
     const capture = data.purchase_units[0]?.payments?.captures?.[0];
     if (!capture) {

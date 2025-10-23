@@ -17,9 +17,12 @@ export async function makeAuthenticatedRequest(
   console.log('✅ Got Firebase token, length:', idToken.length);
 
   // Merge headers
+  // Note: Using 'x-firebase-token' instead of 'Authorization' 
+  // because AWS Amplify sometimes strips the Authorization header
   const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${idToken}`,
+    'x-firebase-token': idToken,
+    'Authorization': `Bearer ${idToken}`, // Keep both for compatibility
     ...options.headers,
   };
 
