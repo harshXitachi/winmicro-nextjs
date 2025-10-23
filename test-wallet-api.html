@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Wallet API</title>
+</head>
+<body>
+    <h1>Wallet API Test</h1>
+    <button onclick="testAPI()">Test /api/admin/wallet</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testAPI() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Loading...';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/admin/wallet');
+                const data = await response.json();
+                
+                resultEl.textContent = JSON.stringify(data, null, 2);
+                
+                if (data.settings) {
+                    console.log('✅ USD Wallet Enabled:', data.settings.usd_wallet_enabled);
+                    console.log('✅ INR Wallet Enabled:', data.settings.inr_wallet_enabled);
+                    console.log('✅ USDT Wallet Enabled:', data.settings.usdt_wallet_enabled);
+                }
+            } catch (error) {
+                resultEl.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

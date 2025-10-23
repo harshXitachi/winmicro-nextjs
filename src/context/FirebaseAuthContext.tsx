@@ -112,6 +112,19 @@ export const FirebaseAuthProvider = ({ children }: { children: React.ReactNode }
       setUser(firebaseUser);
       
       if (firebaseUser) {
+        // Get Firebase ID token and set it as a cookie
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          await fetch('/api/auth/set-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: idToken }),
+          });
+          console.log('✅ Firebase token set as cookie');
+        } catch (error) {
+          console.error('❌ Failed to set Firebase token cookie:', error);
+        }
+        
         await syncUserWithDatabase(firebaseUser);
       } else {
         setProfile(null);

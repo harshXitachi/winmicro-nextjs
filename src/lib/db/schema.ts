@@ -3,7 +3,7 @@ import { sql } from 'drizzle-orm';
 
 // Users table
 export const users = pgTable('users', {
-  id: uuid('id').defaultRandom().primaryKey(),
+  id: text('id').primaryKey(), // Firebase UID
   email: varchar('email', { length: 255 }).unique().notNull(),
   password: text('password').notNull(),
   first_name: varchar('first_name', { length: 100 }),
@@ -20,7 +20,7 @@ export const users = pgTable('users', {
 // Profiles table
 export const profiles = pgTable('profiles', {
   id: uuid('id').defaultRandom().primaryKey(),
-  user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
+  user_id: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
   username: varchar('username', { length: 50 }).unique(),
   avatar_url: text('avatar_url'),
   bio: text('bio'),
@@ -58,8 +58,8 @@ export const tasks = pgTable('tasks', {
   deadline: timestamp('deadline'),
   status: varchar('status', { length: 20 }).default('open').notNull(),
   priority: varchar('priority', { length: 20 }).default('medium'),
-  client_id: uuid('client_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  freelancer_id: uuid('freelancer_id').references(() => users.id, { onDelete: 'set null' }),
+  client_id: text('client_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  freelancer_id: text('freelancer_id').references(() => users.id, { onDelete: 'set null' }),
   skills_required: jsonb('skills_required').$type<string[]>().default(sql`'[]'::jsonb`),
   applications_count: integer('applications_count').default(0),
   created_at: timestamp('created_at').defaultNow().notNull(),
@@ -70,7 +70,7 @@ export const tasks = pgTable('tasks', {
 export const applications = pgTable('applications', {
   id: uuid('id').defaultRandom().primaryKey(),
   task_id: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }).notNull(),
-  freelancer_id: uuid('freelancer_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  freelancer_id: text('freelancer_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   cover_letter: text('cover_letter'),
   proposed_budget: decimal('proposed_budget', { precision: 10, scale: 2 }),
   estimated_duration: varchar('estimated_duration', { length: 100 }),
@@ -82,8 +82,8 @@ export const applications = pgTable('applications', {
 // Messages table
 export const messages = pgTable('messages', {
   id: uuid('id').defaultRandom().primaryKey(),
-  sender_id: uuid('sender_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  recipient_id: uuid('recipient_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  sender_id: text('sender_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  recipient_id: text('recipient_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   task_id: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
   application_id: uuid('application_id').references(() => applications.id, { onDelete: 'set null' }),
   content: text('content').notNull(),
@@ -99,7 +99,7 @@ export const messages = pgTable('messages', {
 // Wallet transactions table
 export const wallet_transactions = pgTable('wallet_transactions', {
   id: uuid('id').defaultRandom().primaryKey(),
-  user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  user_id: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
   type: varchar('type', { length: 20 }).notNull(), // 'credit' or 'debit'
   transaction_type: varchar('transaction_type', { length: 50 }).notNull(), // 'deposit', 'withdrawal', 'task_payment', etc.
@@ -108,8 +108,8 @@ export const wallet_transactions = pgTable('wallet_transactions', {
   status: varchar('status', { length: 20 }).default('completed').notNull(),
   reference_id: varchar('reference_id', { length: 255 }),
   commission_amount: decimal('commission_amount', { precision: 10, scale: 2 }).default('0.00'),
-  from_user_id: uuid('from_user_id').references(() => users.id, { onDelete: 'set null' }),
-  to_user_id: uuid('to_user_id').references(() => users.id, { onDelete: 'set null' }),
+  from_user_id: text('from_user_id').references(() => users.id, { onDelete: 'set null' }),
+  to_user_id: text('to_user_id').references(() => users.id, { onDelete: 'set null' }),
   task_id: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
@@ -117,7 +117,7 @@ export const wallet_transactions = pgTable('wallet_transactions', {
 // Payment transactions table
 export const payment_transactions = pgTable('payment_transactions', {
   id: uuid('id').defaultRandom().primaryKey(),
-  user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  user_id: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   task_id: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
   amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
   payment_method: varchar('payment_method', { length: 50 }),
@@ -188,7 +188,7 @@ export const campaigns = pgTable('campaigns', {
   visibility: varchar('visibility', { length: 20 }).default('public').notNull(), // 'public' or 'private'
   group_chat_enabled: boolean('group_chat_enabled').default(true).notNull(),
   status: varchar('status', { length: 20 }).default('active').notNull(), // 'active', 'paused', 'completed', 'cancelled'
-  employer_id: uuid('employer_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  employer_id: text('employer_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   escrow_balance: decimal('escrow_balance', { precision: 10, scale: 2 }).default('0.00').notNull(),
   total_spent: decimal('total_spent', { precision: 10, scale: 2 }).default('0.00').notNull(),
   created_at: timestamp('created_at').defaultNow().notNull(),
@@ -199,7 +199,7 @@ export const campaigns = pgTable('campaigns', {
 export const campaign_members = pgTable('campaign_members', {
   id: uuid('id').defaultRandom().primaryKey(),
   campaign_id: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }).notNull(),
-  user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  user_id: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   role: varchar('role', { length: 20 }).default('worker').notNull(), // 'admin' (employer) or 'worker'
   status: varchar('status', { length: 20 }).default('active').notNull(), // 'active', 'removed', 'left'
   tasks_completed: integer('tasks_completed').default(0),
@@ -212,7 +212,7 @@ export const campaign_members = pgTable('campaign_members', {
 export const campaign_chat_messages = pgTable('campaign_chat_messages', {
   id: uuid('id').defaultRandom().primaryKey(),
   campaign_id: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }).notNull(),
-  sender_id: uuid('sender_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  sender_id: text('sender_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   content: text('content').notNull(),
   message_type: varchar('message_type', { length: 50 }).default('text').notNull(), // 'text', 'system', 'payment_notification'
   metadata: jsonb('metadata'), // For payment notifications, pinned messages, etc.
@@ -224,12 +224,12 @@ export const campaign_chat_messages = pgTable('campaign_chat_messages', {
 export const campaign_submissions = pgTable('campaign_submissions', {
   id: uuid('id').defaultRandom().primaryKey(),
   campaign_id: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }).notNull(),
-  worker_id: uuid('worker_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  worker_id: text('worker_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   proof_url: text('proof_url'), // Link to uploaded proof/work
   description: text('description'),
   status: varchar('status', { length: 20 }).default('pending').notNull(), // 'pending', 'approved', 'rejected'
   review_note: text('review_note'),
-  reviewed_by: uuid('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewed_by: text('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
   reviewed_at: timestamp('reviewed_at'),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });
@@ -238,8 +238,8 @@ export const campaign_submissions = pgTable('campaign_submissions', {
 export const campaign_bonus_payments = pgTable('campaign_bonus_payments', {
   id: uuid('id').defaultRandom().primaryKey(),
   campaign_id: uuid('campaign_id').references(() => campaigns.id, { onDelete: 'cascade' }).notNull(),
-  from_user_id: uuid('from_user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  to_user_id: uuid('to_user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  from_user_id: text('from_user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  to_user_id: text('to_user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
   currency: varchar('currency', { length: 10 }).default('INR').notNull(),
   note: text('note'),

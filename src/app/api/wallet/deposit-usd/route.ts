@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUserFromRequest } from '@/lib/auth';
 import { createPayPalOrder } from '@/lib/payments/paypal';
 import { db, wallet_transactions, users, commission_settings } from '@/lib/db';
 import { eq } from 'drizzle-orm';
@@ -9,10 +9,19 @@ export const dynamic = 'force-dynamic';
 // POST /api/wallet/deposit-usd
 export async function POST(request: NextRequest) {
   try {
-    const currentUser = await getCurrentUser();
+    console.log('🔵 deposit-usd: Starting request');
+    console.log('📤 Request headers:', {
+      authorization: request.headers.get('authorization') ? '[PRESENT]' : '[MISSING]',
+      'x-firebase-token': request.headers.get('x-firebase-token') ? '[PRESENT]' : '[MISSING]',
+      'content-type': request.headers.get('content-type'),
+    });
+    
+    const currentUser = await getCurrentUserFromRequest(request);
     if (!currentUser) {
+      console.log('❌ deposit-usd: No current user, returning 401');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.log('✅ deposit-usd: User authenticated:', currentUser.userId);
 
     const { amount } = await request.json();
 

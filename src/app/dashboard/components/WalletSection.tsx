@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
+import { makeAuthenticatedRequest } from '@/lib/api-client-auth';
 import { useDarkMode } from '@/context/DarkModeContext';
 import { formatCurrency, convertCurrency, getCurrencySymbol, getPaymentGateway, type Currency } from '@/lib/currency';
 
@@ -17,6 +19,7 @@ interface Transaction {
 
 export default function WalletSection() {
   const { user, profile, refreshProfile } = useAuth();
+  const { user: firebaseUser } = useFirebaseAuth();
   const { isDarkMode } = useDarkMode();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,12 +41,20 @@ export default function WalletSection() {
 
   useEffect(() => {
     if (user && profile) {
-      setDefaultCurrency((profile.default_currency as Currency) || 'INR');
-      setCurrency((profile.default_currency as Currency) || 'INR');
-      loadTransactions();
+      const profileDefaultCurrency = (profile.default_currency as Currency) || 'INR';
+      setDefaultCurrency(profileDefaultCurrency);
+      
+      // Only set currency on initial load, not on every profile update
+      setCurrency(prevCurrency => prevCurrency || profileDefaultCurrency);
+      
       fetchCommissionSettings();
+      
+      // Load transactions only when firebaseUser is available
+      if (firebaseUser) {
+        loadTransactions();
+      }
     }
-  }, [user, profile]);
+  }, [user, profile, firebaseUser]);
 
   // Refresh settings every 5 seconds to catch admin changes
   useEffect(() => {
@@ -57,9 +68,16 @@ export default function WalletSection() {
 
   const fetchCommissionSettings = async () => {
     try {
-      const response = await fetch('/api/admin/wallet');
+      // Use simple fetch since this endpoint is now public
+      const response = await fetch('/api/admin/wallet', {
+        method: 'GET',
+        cache: 'no-cache',
+      });
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Wallet settings fetched:', data.settings);
+        
         if (data.settings?.commission_percentage) {
           setCommissionRate(parseFloat(data.settings.commission_percentage));
         }
@@ -71,7 +89,10 @@ export default function WalletSection() {
             usd_wallet_enabled: data.settings.usd_wallet_enabled ?? true,
             usdt_wallet_enabled: data.settings.usdt_wallet_enabled ?? true,
           });
+          console.log('✅ USD Wallet enabled:', data.settings.usd_wallet_enabled);
         }
+      } else {
+        console.error('❌ Failed to fetch wallet settings:', response.status);
       }
     } catch (error) {
       console.error('Error fetching commission settings:', error);
@@ -79,10 +100,10 @@ export default function WalletSection() {
   };
 
   const loadTransactions = async () => {
-    if (!user) return;
+    if (!user || !firebaseUser) return;
     
     try {
-      const response = await fetch('/api/payments');
+      const response = await makeAuthenticatedRequest(firebaseUser, '/api/payments');
       if (response.ok) {
         const result = await response.json();
         setTransactions(result.data || []);
@@ -147,9 +168,14 @@ export default function WalletSection() {
           return;
         }
         
-        const response = await fetch('/api/wallet/deposit-inr', {
+        if (!firebaseUser) {
+          alert('Please log in to continue');
+          setProcessing(false);
+          return;
+        }
+        
+        const response = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/deposit-inr', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             amount: depositAmount,
             phoneNumber: phoneNumber,
@@ -169,9 +195,14 @@ export default function WalletSection() {
         }
       } else if (currency === 'USD') {
         // For USD, use PayPal
-        const response = await fetch('/api/wallet/deposit-usd', {
+        if (!firebaseUser) {
+          alert('Please log in to continue');
+          setProcessing(false);
+          return;
+        }
+        
+        const response = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/deposit-usd', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             amount: depositAmount,
           }),

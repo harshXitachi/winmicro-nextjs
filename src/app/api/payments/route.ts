@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, profiles, wallet_transactions, messages, admin_wallets, commission_settings, tasks } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, getCurrentUserFromRequest } from '@/lib/auth';
 import { eq, sql } from 'drizzle-orm';
 
 // POST - Send payment
@@ -237,14 +237,27 @@ export async function POST(request: NextRequest) {
 // GET - Get payment history
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth_token')?.value;
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const payload = await verifyToken(token);
+    console.log('🔍 GET /api/payments - Request received');
+    console.log('📋 Headers:', {
+      'x-firebase-token': request.headers.get('x-firebase-token') ? '[PRESENT]' : '[MISSING]',
+      'authorization': request.headers.get('authorization') ? '[PRESENT]' : '[MISSING]',
+      'cookie': request.headers.get('cookie') ? '[PRESENT]' : '[MISSING]',
+    });
+    
+    // Try Firebase auth first
+    let payload = await getCurrentUserFromRequest(request);
+    
+    // Fallback to cookie-based auth
     if (!payload) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      const token = request.cookies.get('auth_token')?.value;
+      if (!token) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      payload = await verifyToken(token);
+    }
+    
+    if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const transactions = await db

@@ -68,6 +68,13 @@ export async function getCurrentUser(): Promise<JWTPayload | null> {
   try {
     const headersList = await headers();
     
+    // Debug: Log all headers
+    console.log('📋 All headers:', Array.from(headersList.entries()).map(([k, v]) => 
+      k.toLowerCase() === 'authorization' || k.toLowerCase() === 'x-firebase-token' 
+        ? `${k}: [REDACTED]` 
+        : `${k}: ${v}`
+    ));
+    
     // Try custom header first (AWS Amplify workaround)
     let idToken = headersList.get('x-firebase-token');
     
@@ -84,8 +91,17 @@ export async function getCurrentUser(): Promise<JWTPayload | null> {
       }
     }
     
+    // Also try firebase_token cookie
+    if (!idToken) {
+      const cookieStore = await cookies();
+      const firebaseCookie = cookieStore.get('firebase_token');
+      if (firebaseCookie) {
+        idToken = firebaseCookie.value;
+        console.log('🍪 Firebase token from cookie, length:', idToken.length);
+      }
+    }
+    
     if (idToken) {
-      
       try {
         // Check if Firebase Admin is initialized
         if (getApps().length === 0) {
@@ -111,7 +127,7 @@ export async function getCurrentUser(): Promise<JWTPayload | null> {
         console.error('Error code:', firebaseError.code);
       }
     } else {
-      console.log('⚠️ No Bearer token in Authorization header');
+      console.log('⚠️ No Bearer token in Authorization header or cookie');
     }
     
     // Fallback to old JWT token method (for backward compatibility)
@@ -123,6 +139,68 @@ export async function getCurrentUser(): Promise<JWTPayload | null> {
     return await verifyToken(token);
   } catch (error: any) {
     console.error('❌ getCurrentUser error:', error.message);
+    return null;
+  }
+}
+
+export async function getCurrentUserFromRequest(request: Request): Promise<JWTPayload | null> {
+  try {
+    // Try custom header first (AWS Amplify workaround)
+    let idToken = request.headers.get('x-firebase-token');
+    
+    if (idToken) {
+      console.log('🔑 Firebase token from x-firebase-token header, length:', idToken.length);
+    } else {
+      // Fallback to Authorization header
+      const authHeader = request.headers.get('authorization');
+      console.log('🔐 Auth header present:', !!authHeader);
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        idToken = authHeader.substring(7);
+        console.log('🔑 Firebase token from Authorization header, length:', idToken.length);
+      }
+    }
+    
+    // Also try firebase_token from cookie header
+    if (!idToken) {
+      const cookieHeader = request.headers.get('cookie');
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').map(c => c.trim());
+        const firebaseCookie = cookies.find(c => c.startsWith('firebase_token='));
+        if (firebaseCookie) {
+          idToken = firebaseCookie.split('=')[1];
+          console.log('🍪 Firebase token from cookie, length:', idToken.length);
+        }
+      }
+    }
+    
+    if (idToken) {
+      try {
+        // Check if Firebase Admin is initialized
+        if (getApps().length === 0) {
+          console.error('❌ Firebase Admin not initialized!');
+          return null;
+        }
+        
+        const decodedToken = await getAuth().verifyIdToken(idToken);
+        console.log('✅ Firebase token verified for user:', decodedToken.uid);
+        
+        return {
+          userId: decodedToken.uid,
+          email: decodedToken.email || '',
+          role: 'user',
+        };
+      } catch (firebaseError: any) {
+        console.error('❌ Firebase token verification failed:', firebaseError.message);
+        console.error('Error code:', firebaseError.code);
+      }
+    } else {
+      console.log('⚠️ No Bearer token in Authorization header or cookie');
+    }
+    
+    return null;
+  } catch (error: any) {
+    console.error('❌ getCurrentUserFromRequest error:', error.message);
     return null;
   }
 }

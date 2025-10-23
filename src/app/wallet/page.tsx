@@ -140,19 +140,35 @@ export default function WalletPage() {
 
   const handleDepositUSD = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log('=== START handleDepositUSD ===');
+    console.log('1. Deposit amount:', depositAmount);
+    
     if (!depositAmount) {
+      console.error('❌ No deposit amount entered');
       alert('Please enter amount');
       return;
     }
-
+    
+    console.log('2. Checking firebaseUser...');
+    console.log('   firebaseUser exists:', !!firebaseUser);
+    
     if (!firebaseUser) {
+      console.error('❌ No firebaseUser - not logged in!');
       alert('Please log in to continue');
       return;
     }
+    
+    console.log('3. Firebase user details:', {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      emailVerified: firebaseUser.emailVerified,
+    });
 
     setIsProcessing(true);
+    
     try {
-      console.log('🔄 Initiating USD deposit...', { firebaseUser: !!firebaseUser });
+      console.log('4. Calling makeAuthenticatedRequest...');
       
       const res = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/deposit-usd', {
         method: 'POST',
@@ -160,24 +176,37 @@ export default function WalletPage() {
           amount: parseFloat(depositAmount),
         }),
       });
+      
+      console.log('5. Got response, status:', res.status);
 
       const data = await res.json();
-      console.log('📦 Response:', { status: res.status, data });
+      console.log('6. Response data:', data);
 
       if (!res.ok) {
-        console.error('❌ Deposit failed:', data.error);
+        console.error('❌ Deposit failed with status:', res.status);
+        console.error('   Error:', data.error);
         alert(data.error || 'Failed to initiate deposit');
         return;
       }
 
+      console.log('7. Success! Redirecting to PayPal...');
       // Redirect to PayPal approval URL
       if (data.approvalUrl) {
+        console.log('   Approval URL:', data.approvalUrl);
         window.location.href = data.approvalUrl;
+      } else {
+        console.error('❌ No approval URL in response');
+        alert('No payment URL received');
       }
-    } catch (error) {
-      console.error('Deposit error:', error);
-      alert('Failed to initiate deposit');
+    } catch (error: any) {
+      console.error('=== DEPOSIT ERROR ===');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Full error:', error);
+      console.error('Stack trace:', error.stack);
+      alert('Failed to initiate deposit: ' + error.message);
     } finally {
+      console.log('=== END handleDepositUSD ===');
       setIsProcessing(false);
     }
   };

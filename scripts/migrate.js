@@ -30,12 +30,16 @@ async function migrate() {
     console.log('📦 Creating users table...');
     await sql`
       CREATE TABLE users (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        id TEXT PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
         password TEXT NOT NULL,
         first_name VARCHAR(100),
         last_name VARCHAR(100),
         role VARCHAR(20) DEFAULT 'user' NOT NULL,
+        is_banned BOOLEAN DEFAULT false NOT NULL,
+        ban_reason TEXT,
+        ban_expires_at TIMESTAMP,
+        banned_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW() NOT NULL,
         updated_at TIMESTAMP DEFAULT NOW() NOT NULL
       )
@@ -46,12 +50,16 @@ async function migrate() {
     await sql`
       CREATE TABLE profiles (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         username VARCHAR(50) UNIQUE,
         avatar_url TEXT,
         bio TEXT,
         skills JSONB DEFAULT '[]'::jsonb,
         wallet_balance DECIMAL(10, 2) DEFAULT 0.00 NOT NULL,
+        wallet_balance_inr DECIMAL(10, 2) DEFAULT 0.00 NOT NULL,
+        wallet_balance_usd DECIMAL(10, 2) DEFAULT 0.00 NOT NULL,
+        wallet_balance_usdt DECIMAL(10, 2) DEFAULT 0.00 NOT NULL,
+        default_currency VARCHAR(10) DEFAULT 'INR' NOT NULL,
         rating DECIMAL(3, 2) DEFAULT 0.00,
         total_earnings DECIMAL(10, 2) DEFAULT 0.00,
         completed_tasks INTEGER DEFAULT 0,
@@ -83,8 +91,8 @@ async function migrate() {
         deadline TIMESTAMP,
         status VARCHAR(20) DEFAULT 'open' NOT NULL,
         priority VARCHAR(20) DEFAULT 'medium',
-        client_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        freelancer_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        client_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        freelancer_id TEXT REFERENCES users(id) ON DELETE SET NULL,
         skills_required JSONB DEFAULT '[]'::jsonb,
         applications_count INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT NOW() NOT NULL,
@@ -98,7 +106,7 @@ async function migrate() {
       CREATE TABLE applications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-        freelancer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        freelancer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         cover_letter TEXT,
         proposed_budget DECIMAL(10, 2),
         estimated_duration VARCHAR(100),
@@ -113,8 +121,8 @@ async function migrate() {
     await sql`
       CREATE TABLE messages (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        recipient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
         application_id UUID REFERENCES applications(id) ON DELETE SET NULL,
         content TEXT NOT NULL,
@@ -133,7 +141,7 @@ async function migrate() {
     await sql`
       CREATE TABLE wallet_transactions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         amount DECIMAL(10, 2) NOT NULL,
         type VARCHAR(20) NOT NULL,
         transaction_type VARCHAR(50) NOT NULL,
@@ -142,8 +150,8 @@ async function migrate() {
         status VARCHAR(20) DEFAULT 'completed' NOT NULL,
         reference_id VARCHAR(255),
         commission_amount DECIMAL(10, 2) DEFAULT 0.00,
-        from_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-        to_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        from_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        to_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
         task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
         created_at TIMESTAMP DEFAULT NOW() NOT NULL
       )
@@ -154,7 +162,7 @@ async function migrate() {
     await sql`
       CREATE TABLE payment_transactions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
         amount DECIMAL(10, 2) NOT NULL,
         payment_method VARCHAR(50),
@@ -197,7 +205,7 @@ async function migrate() {
         visibility VARCHAR(20) DEFAULT 'public' NOT NULL CHECK (visibility IN ('public', 'private')),
         group_chat_enabled BOOLEAN DEFAULT TRUE NOT NULL,
         status VARCHAR(20) DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'paused', 'completed', 'cancelled')),
-        employer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        employer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         escrow_balance DECIMAL(10, 2) DEFAULT 0.00 NOT NULL,
         total_spent DECIMAL(10, 2) DEFAULT 0.00 NOT NULL,
         created_at TIMESTAMP DEFAULT NOW() NOT NULL,
@@ -211,7 +219,7 @@ async function migrate() {
       CREATE TABLE campaign_members (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         role VARCHAR(20) DEFAULT 'worker' NOT NULL CHECK (role IN ('admin', 'worker')),
         status VARCHAR(20) DEFAULT 'active' NOT NULL CHECK (status IN ('active', 'removed', 'left')),
         tasks_completed INTEGER DEFAULT 0,
@@ -228,7 +236,7 @@ async function migrate() {
       CREATE TABLE campaign_chat_messages (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
-        sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         content TEXT NOT NULL,
         message_type VARCHAR(50) DEFAULT 'text' NOT NULL CHECK (message_type IN ('text', 'system', 'payment_notification')),
         metadata JSONB,
@@ -243,12 +251,12 @@ async function migrate() {
       CREATE TABLE campaign_submissions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
-        worker_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        worker_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         proof_url TEXT,
         description TEXT,
         status VARCHAR(20) DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
         review_note TEXT,
-        reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
         reviewed_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW() NOT NULL
       )
@@ -260,8 +268,8 @@ async function migrate() {
       CREATE TABLE campaign_bonus_payments (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
-        from_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        to_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        from_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        to_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         amount DECIMAL(10, 2) NOT NULL,
         currency VARCHAR(10) DEFAULT 'INR' NOT NULL CHECK (currency IN ('INR', 'USD', 'USDT')),
         note TEXT,
@@ -286,13 +294,13 @@ async function migrate() {
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin1';
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
     
-    const adminResult = await sql`
-      INSERT INTO users (email, password, first_name, last_name, role)
-      VALUES (${adminEmail}, ${hashedPassword}, 'Admin', 'User', 'admin')
-      RETURNING id
-    `;
+    // Generate a Firebase-like UID for admin
+    const adminId = 'admin_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 15);
     
-    const adminId = adminResult[0].id;
+    await sql`
+      INSERT INTO users (id, email, password, first_name, last_name, role)
+      VALUES (${adminId}, ${adminEmail}, ${hashedPassword}, 'Admin', 'User', 'admin')
+    `;
     
     await sql`
       INSERT INTO profiles (user_id, username, bio, wallet_balance, wallet_balance_inr, wallet_balance_usd, wallet_balance_usdt, default_currency, rating, level, experience_points, response_time)
