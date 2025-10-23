@@ -1,18 +1,30 @@
-// Razorpay Gateway Configuration
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
+// Razorpay Gateway Configuration - Enhanced with fallbacks
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEYID || '';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEYSECRET || '';
 const RAZORPAY_MODE = process.env.RAZORPAY_MODE === 'test' ? 'test' : 'live';
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
 
-// Debug environment variables
+// Enhanced debug environment variables
 console.log('🔍 Razorpay Environment Check:', {
   hasKeyId: !!RAZORPAY_KEY_ID,
   hasKeySecret: !!RAZORPAY_KEY_SECRET,
   mode: RAZORPAY_MODE,
   nodeEnv: process.env.NODE_ENV,
   keyIdPreview: RAZORPAY_KEY_ID ? RAZORPAY_KEY_ID.substring(0, 10) + '...' : 'NOT SET',
-  keySecretPreview: RAZORPAY_KEY_SECRET ? RAZORPAY_KEY_SECRET.substring(0, 10) + '...' : 'NOT SET'
+  keySecretPreview: RAZORPAY_KEY_SECRET ? RAZORPAY_KEY_SECRET.substring(0, 10) + '...' : 'NOT SET',
+  allEnvKeys: Object.keys(process.env).filter(key => key.includes('RAZORPAY')),
+  timestamp: new Date().toISOString()
 });
+
+// Check if we're in production and credentials are missing
+if (process.env.NODE_ENV === 'production' && (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET)) {
+  console.error('❌ PRODUCTION: Razorpay credentials missing!');
+  console.error('Environment variables found:', {
+    RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID ? 'SET' : 'MISSING',
+    RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET ? 'SET' : 'MISSING',
+    RAZORPAY_MODE: process.env.RAZORPAY_MODE || 'NOT SET'
+  });
+}
 
 interface RazorpayOrderResponse {
   id: string;
