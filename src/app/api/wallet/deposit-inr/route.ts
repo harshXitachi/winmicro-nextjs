@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { createPhonePePayment } from '@/lib/payments/phonepe';
-import { createPhonePePaymentMock } from '@/lib/payments/phonepe-mock';
+import { createRazorpayOrder } from '@/lib/payments/razorpay';
 import { db, wallet_transactions, users, commission_settings, admin_wallets, profiles } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
@@ -15,14 +14,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { amount, phoneNumber } = await request.json();
+    const { amount } = await request.json();
 
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
     }
 
-    if (!phoneNumber) {
-      return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
+    if (amount < 100) {
+      return NextResponse.json({ error: 'Minimum deposit amount is ₹100' }, { status: 400 });
     }
 
     // Get commission settings
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest) {
     const payableAmount = parseFloat((amount + commissionAmount).toFixed(2));
 
     // Create transaction record (pending)
-    const transactionId = `TXN_${Date.now()}_${currentUser.userId.substring(0, 8)}`;
+    const transactionId = `RAZORPAY_${Date.now()}_${currentUser.userId.substring(0, 8)}`;
     
     const [transaction] = await db.insert(wallet_transactions)
       .values({
@@ -65,42 +64,28 @@ export async function POST(request: NextRequest) {
         type: 'credit',
         transaction_type: 'deposit',
         currency: 'INR',
-        description: `Deposit of ₹${amount} via PhonePe`,
+        description: `Deposit of ₹${amount} via Razorpay`,
         status: 'pending',
         reference_id: transactionId,
         commission_amount: commissionAmount.toFixed(2),
       })
       .returning();
 
-    // Create PhonePe payment request for total payable (amount + commission if any)
-    const isPhonePeMockMode = process.env.PHONEPE_MOCK_MODE === 'true';
-    
-    let phonePeData;
-    if (isPhonePeMockMode) {
-      console.log('🧪 Using PhonePe MOCK mode for testing');
-      phonePeData = await createPhonePePaymentMock(
-        currentUser.userId,
-        transactionId,
-        payableAmount,
-        phoneNumber,
-        `${process.env.NEXT_PUBLIC_APP_URL}/wallet/payment-success?transactionId=${transaction.id}`,
-        `${process.env.NEXT_PUBLIC_API_URL}/api/wallet/phonepe-callback`
-      );
-    } else {
-      phonePeData = await createPhonePePayment(
-        currentUser.userId,
-        transactionId,
-        payableAmount,
-        phoneNumber,
-        `${process.env.NEXT_PUBLIC_APP_URL}/wallet/payment-success?transactionId=${transaction.id}`,
-        `${process.env.NEXT_PUBLIC_API_URL}/api/wallet/phonepe-callback`
-      );
-    }
+    // Create Razorpay order for total payable (amount + commission if any)
+    const razorpayOrder = await createRazorpayOrder(
+      currentUser.userId,
+      Math.round(payableAmount * 100), // Convert to paise
+      `Wallet Deposit - ₹${amount}`,
+      transactionId
+    );
 
     return NextResponse.json({
       success: true,
       transaction: transaction,
-      paymentUrl: phonePeData.url,
+      orderId: razorpayOrder.orderId,
+      keyId: razorpayOrder.keyId,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency,
       transactionId: transactionId,
       commission: {
         enabled: commissionEnabled,

@@ -62,10 +62,24 @@ async function getAccessToken(): Promise<string> {
   }
 
   try {
+    // Enhanced environment variable checking
+    console.log('🔍 PayPal Environment Check:', {
+      hasClientId: !!PAYPAL_CLIENT_ID,
+      hasSecret: !!PAYPAL_SECRET,
+      mode: PAYPAL_MODE,
+      apiBase: PAYPAL_API_BASE,
+      nodeEnv: process.env.NODE_ENV
+    });
+
     if (!PAYPAL_CLIENT_ID || !PAYPAL_SECRET) {
       console.error('❌ PayPal credentials missing!');
-      throw new Error('PayPal credentials not configured. Please set PAYPAL_CLIENT_ID and PAYPAL_SECRET.');
+      console.error('Missing variables:', {
+        PAYPAL_CLIENT_ID: !PAYPAL_CLIENT_ID,
+        PAYPAL_SECRET: !PAYPAL_SECRET
+      });
+      throw new Error('PayPal credentials not configured. Please set PAYPAL_CLIENT_ID and PAYPAL_SECRET environment variables in AWS Amplify Console.');
     }
+    
     console.log(`🔐 Getting PayPal token from ${PAYPAL_API_BASE} (mode: ${PAYPAL_MODE})...`);
     const auth = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString('base64');
 

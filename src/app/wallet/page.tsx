@@ -95,8 +95,8 @@ export default function WalletPage() {
 
   const handleDepositINR = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!depositAmount || !phoneNumber) {
-      alert('Please fill in all fields');
+    if (!depositAmount) {
+      alert('Please enter deposit amount');
       return;
     }
 
@@ -113,7 +113,6 @@ export default function WalletPage() {
         method: 'POST',
         body: JSON.stringify({
           amount: parseFloat(depositAmount),
-          phoneNumber: phoneNumber,
         }),
       });
 
@@ -126,9 +125,56 @@ export default function WalletPage() {
         return;
       }
 
-      // Redirect to PhonePay payment page
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
+      // Initialize Razorpay payment
+      if (data.orderId && data.keyId) {
+        const options = {
+          key: data.keyId,
+          amount: data.amount,
+          currency: data.currency,
+          name: 'WinMicro',
+          description: `Wallet Deposit - ₹${depositAmount}`,
+          order_id: data.orderId,
+          handler: async function (response: any) {
+            console.log('✅ Razorpay payment successful:', response);
+            
+            // Call our callback to verify and process payment
+            try {
+              const callbackRes = await fetch('/api/wallet/razorpay-callback', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+
+              const callbackData = await callbackRes.json();
+              
+              if (callbackRes.ok) {
+                alert('Payment successful! Your wallet has been credited.');
+                window.location.reload(); // Refresh to show updated balance
+              } else {
+                alert('Payment verification failed. Please contact support.');
+              }
+            } catch (error) {
+              console.error('Payment verification error:', error);
+              alert('Payment verification failed. Please contact support.');
+            }
+          },
+          prefill: {
+            name: firebaseUser.displayName || '',
+            email: firebaseUser.email || '',
+          },
+          theme: {
+            color: '#3B82F6',
+          },
+        };
+
+        const razorpay = new (window as any).Razorpay(options);
+        razorpay.open();
       }
     } catch (error) {
       console.error('Deposit error:', error);

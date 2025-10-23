@@ -90,8 +90,29 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Deposit USD error:', error);
+    
+    // Enhanced error handling for debugging
+    const errorDetails = {
+      message: error.message || 'Failed to initiate deposit',
+      type: error.name || 'UnknownError',
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        hasPaypalClientId: !!process.env.PAYPAL_CLIENT_ID,
+        hasPaypalSecret: !!process.env.PAYPAL_SECRET,
+        paypalMode: process.env.PAYPAL_MODE,
+        appUrl: process.env.NEXT_PUBLIC_APP_URL
+      }
+    };
+    
+    console.error('Enhanced error details:', errorDetails);
+    
     return NextResponse.json(
-      { error: error.message || 'Failed to initiate deposit' },
+      { 
+        error: error.message || 'Failed to initiate deposit',
+        details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
+      },
       { status: 500 }
     );
   }
