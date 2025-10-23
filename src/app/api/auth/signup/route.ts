@@ -29,9 +29,13 @@ export async function POST(request: NextRequest) {
 
     // Hash password
     const hashedPassword = await hashPassword(password);
+    
+    // Generate a unique ID for the user
+    const userId = `user-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
     // Create user
     const newUserResult = await db.insert(users).values({
+      id: userId,
       email,
       password: hashedPassword,
       first_name: first_name || '',
