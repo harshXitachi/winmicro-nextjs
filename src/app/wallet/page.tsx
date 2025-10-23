@@ -471,7 +471,7 @@ export default function WalletPage() {
                       disabled={isProcessing || !!(commissionSettings && !commissionSettings.inr_wallet_enabled)}
                       className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
                     >
-                      {isProcessing ? 'Processing...' : 'Proceed to PhonePay'}
+                      {isProcessing ? 'Processing...' : 'Proceed to Razorpay'}
                     </button>
                   </form>
                 ) : (
@@ -525,7 +525,7 @@ export default function WalletPage() {
                 <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <h4 className="font-semibold text-blue-900 mb-2">Payment Methods</h4>
                   <ul className="text-sm text-blue-800 space-y-1">
-                    <li>💳 <strong>INR:</strong> PhonePay (Credit/Debit Card, UPI, Wallet)</li>
+                    <li>💳 <strong>INR:</strong> Razorpay (Credit/Debit Card, UPI, Wallet)</li>
                     <li>💳 <strong>USD:</strong> PayPal (All payment methods)</li>
                   </ul>
                 </div>

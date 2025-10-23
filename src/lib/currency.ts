@@ -94,7 +94,7 @@ export function getCurrencyFlag(currency: Currency): string {
 export function getPaymentGateway(currency: Currency): string {
   switch (currency) {
     case 'INR':
-      return 'PhonePe';
+      return 'Razorpay';
     case 'USD':
       return 'PayPal';
     case 'USDT':
