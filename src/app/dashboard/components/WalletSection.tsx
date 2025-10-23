@@ -107,9 +107,15 @@ export default function WalletSection() {
       if (response.ok) {
         const result = await response.json();
         setTransactions(result.data || []);
+      } else {
+        console.error('Failed to load transactions:', response.status);
+        // Set empty array to prevent infinite loading
+        setTransactions([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading transactions:', error);
+      // Set empty array to prevent infinite loading
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -177,7 +183,8 @@ export default function WalletSection() {
         const data = await response.json();
 
         if (!response.ok) {
-          alert(data.error || 'Failed to initiate deposit');
+          console.error('Deposit initiation failed:', data);
+          alert(data.error || 'Failed to initiate deposit. Please try again.');
           return;
         }
 
@@ -212,6 +219,8 @@ export default function WalletSection() {
                 if (callbackRes.ok) {
                   alert('Payment successful! Your wallet has been credited.');
                   await refreshProfile(); // Refresh profile to show updated balance
+                  setShowDepositModal(false);
+                  setAmount('');
                 } else {
                   alert('Payment verification failed. Please contact support.');
                 }
@@ -231,6 +240,8 @@ export default function WalletSection() {
 
           const razorpay = new (window as any).Razorpay(options);
           razorpay.open();
+        } else {
+          alert('Failed to initialize payment. Please try again.');
         }
       } else if (currency === 'USD') {
         // For USD, use PayPal
@@ -250,7 +261,8 @@ export default function WalletSection() {
         const data = await response.json();
 
         if (!response.ok) {
-          alert(data.error || 'Failed to initiate deposit');
+          console.error('USD deposit initiation failed:', data);
+          alert(data.error || 'Failed to initiate deposit. Please try again.');
           return;
         }
 
@@ -262,6 +274,8 @@ export default function WalletSection() {
         // Redirect to PayPal approval URL
         if (data.approvalUrl) {
           window.location.href = data.approvalUrl;
+        } else {
+          alert('Failed to initialize PayPal payment. Please try again.');
         }
       } else {
         alert('USDT deposits not yet supported. Please use INR or USD.');

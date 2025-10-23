@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, getCurrentUserFromRequest } from '@/lib/auth';
 import { createRazorpayOrder } from '@/lib/payments/razorpay';
 import { db, wallet_transactions, users, commission_settings, admin_wallets, profiles } from '@/lib/db';
 import { eq } from 'drizzle-orm';
@@ -9,10 +9,22 @@ export const dynamic = 'force-dynamic';
 // POST /api/wallet/deposit-inr
 export async function POST(request: NextRequest) {
   try {
-    const currentUser = await getCurrentUser();
+    console.log('🔍 POST /api/wallet/deposit-inr - Request received');
+    
+    // Try Firebase auth first
+    let currentUser = await getCurrentUserFromRequest(request);
+    
+    // Fallback to server-side auth
     if (!currentUser) {
+      currentUser = await getCurrentUser();
+    }
+    
+    if (!currentUser) {
+      console.log('❌ No authenticated user found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    
+    console.log('✅ Authenticated user:', currentUser.userId);
 
     const { amount } = await request.json();
 

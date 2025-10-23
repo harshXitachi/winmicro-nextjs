@@ -251,14 +251,18 @@ export async function GET(request: NextRequest) {
     if (!payload) {
       const token = request.cookies.get('auth_token')?.value;
       if (!token) {
+        console.log('❌ No authentication token found');
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
       payload = await verifyToken(token);
     }
     
     if (!payload) {
+      console.log('❌ Authentication failed');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    console.log('✅ Authenticated user:', payload.userId);
 
     const transactions = await db
       .select()
@@ -266,6 +270,7 @@ export async function GET(request: NextRequest) {
       .where(eq(wallet_transactions.user_id, payload.userId))
       .orderBy(sql`${wallet_transactions.created_at} DESC`);
 
+    console.log('📊 Found transactions:', transactions.length);
     return NextResponse.json({ data: transactions });
   } catch (error) {
     console.error('Get payments error:', error);
