@@ -94,11 +94,15 @@ export async function POST(request: NextRequest) {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Generate a unique ID for the user (since we're not using Firebase for this admin-created user)
+    const userId = `admin-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
     // Create user
     const [newUser] = await db
       .insert(users)
       .values({
+        id: userId,
         email,
         password: hashedPassword,
         first_name,
