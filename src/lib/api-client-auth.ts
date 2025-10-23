@@ -6,11 +6,15 @@ export async function makeAuthenticatedRequest(
   options: RequestInit = {}
 ): Promise<Response> {
   if (!firebaseUser) {
+    console.error('❌ makeAuthenticatedRequest: No Firebase user');
     throw new Error('User not authenticated');
   }
 
+  console.log('🔑 Getting Firebase ID token for user:', firebaseUser.uid);
+  
   // Get fresh Firebase ID token
   const idToken = await firebaseUser.getIdToken();
+  console.log('✅ Got Firebase token, length:', idToken.length);
 
   // Merge headers
   const headers = {
@@ -18,6 +22,9 @@ export async function makeAuthenticatedRequest(
     'Authorization': `Bearer ${idToken}`,
     ...options.headers,
   };
+
+  console.log('📤 Sending request to:', url);
+  console.log('📋 Headers:', { ...headers, Authorization: 'Bearer [REDACTED]' });
 
   return fetch(url, {
     ...options,
