@@ -2,17 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { makeAuthenticatedRequest } from '@/lib/api-client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function PaymentSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processing your payment...');
 
   useEffect(() => {
     const processPayment = async () => {
       try {
+        // Check if user is authenticated
+        if (!user) {
+          setStatus('error');
+          setMessage('Please log in to complete payment.');
+          return;
+        }
+
         // Get PayPal order ID from URL params
         const token = searchParams.get('token'); // PayPal order ID
         const payerId = searchParams.get('PayerID');
@@ -26,10 +34,17 @@ export default function PaymentSuccessPage() {
           return;
         }
 
+        // Get Firebase ID token
+        const idToken = await user.getIdToken();
+
         // Call our callback API to capture the payment
-        const response = await makeAuthenticatedRequest('/api/wallet/paypal-callback', {
+        const response = await fetch('/api/wallet/paypal-callback', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+            'x-firebase-token': idToken,
+          },
           body: JSON.stringify({
             orderId: token,
             transactionId: transactionId,
@@ -61,7 +76,7 @@ export default function PaymentSuccessPage() {
     };
 
     processPayment();
-  }, [searchParams, router]);
+  }, [searchParams, router, user]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
