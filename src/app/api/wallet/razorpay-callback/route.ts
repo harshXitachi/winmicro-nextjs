@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { verifyRazorpaySignature, getRazorpayPaymentDetails } from '@/lib/payments/razorpay';
-import { db, wallet_transactions, users } from '@/lib/db';
+import { db, wallet_transactions, users, profiles } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
@@ -69,32 +69,41 @@ export async function POST(request: NextRequest) {
     await db.update(wallet_transactions)
       .set({
         status: 'completed',
-        payment_id: razorpay_payment_id,
-        updated_at: new Date(),
+        reference_id: razorpay_payment_id, // Store payment ID in reference_id
       })
       .where(eq(wallet_transactions.id, transaction.id));
 
-    // Update user wallet balance
-    const currentBalance = parseFloat(user.inr_balance || '0');
-    const depositAmount = parseFloat(transaction.amount);
-    const newBalance = currentBalance + depositAmount;
+    // Update user wallet balance in profiles table
+    const [profile] = await db.select()
+      .from(profiles)
+      .where(eq(profiles.user_id, user.id))
+      .limit(1);
 
-    await db.update(users)
-      .set({
-        inr_balance: newBalance.toFixed(2),
-        updated_at: new Date(),
-      })
-      .where(eq(users.id, user.id));
+    if (profile) {
+      const currentBalance = parseFloat(profile.wallet_balance_inr || '0');
+      const depositAmount = parseFloat(transaction.amount);
+      const newBalance = currentBalance + depositAmount;
 
-    console.log(`✅ Payment completed: ₹${depositAmount} added to user ${user.id}`);
+      await db.update(profiles)
+        .set({
+          wallet_balance_inr: newBalance.toFixed(2),
+          updated_at: new Date(),
+        })
+        .where(eq(profiles.user_id, user.id));
 
-    return NextResponse.json({
-      success: true,
-      message: 'Payment processed successfully',
-      transactionId: transaction.id,
-      amount: depositAmount,
-      newBalance: newBalance,
-    });
+      console.log(`✅ Payment completed: ₹${depositAmount} added to user ${user.id}`);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Payment processed successfully',
+        transactionId: transaction.id,
+        amount: depositAmount,
+        newBalance: newBalance,
+      });
+    } else {
+      console.error('❌ User profile not found');
+      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+    }
 
   } catch (error: any) {
     console.error('Razorpay callback error:', error);
