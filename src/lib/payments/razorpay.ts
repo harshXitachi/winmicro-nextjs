@@ -4,6 +4,16 @@ const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
 const RAZORPAY_MODE = process.env.RAZORPAY_MODE === 'test' ? 'test' : 'live';
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
 
+// Debug environment variables
+console.log('🔍 Razorpay Environment Check:', {
+  hasKeyId: !!RAZORPAY_KEY_ID,
+  hasKeySecret: !!RAZORPAY_KEY_SECRET,
+  mode: RAZORPAY_MODE,
+  nodeEnv: process.env.NODE_ENV,
+  keyIdPreview: RAZORPAY_KEY_ID ? RAZORPAY_KEY_ID.substring(0, 10) + '...' : 'NOT SET',
+  keySecretPreview: RAZORPAY_KEY_SECRET ? RAZORPAY_KEY_SECRET.substring(0, 10) + '...' : 'NOT SET'
+});
+
 interface RazorpayOrderResponse {
   id: string;
   amount: number;
