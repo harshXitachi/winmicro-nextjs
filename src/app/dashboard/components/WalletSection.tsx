@@ -38,9 +38,11 @@ export default function WalletSection() {
     usd_wallet_enabled: true,
     usdt_wallet_enabled: true,
   });
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
 
   useEffect(() => {
-    if (user && profile) {
+    if (user && profile && !isInitialized) {
       const profileDefaultCurrency = (profile.default_currency as Currency) || 'INR';
       setDefaultCurrency(profileDefaultCurrency);
       
@@ -53,25 +55,34 @@ export default function WalletSection() {
       if (firebaseUser) {
         loadTransactions();
       }
+      
+      setIsInitialized(true);
     }
-  }, [user, profile, firebaseUser]);
+  }, [user, profile, firebaseUser, isInitialized]);
 
-  // Refresh settings every 5 seconds to catch admin changes
+  // Refresh settings every 30 seconds to catch admin changes (reduced frequency)
   useEffect(() => {
+    if (!user || !profile) return;
+    
     const interval = setInterval(() => {
-      if (user && profile) {
-        fetchCommissionSettings();
-      }
-    }, 5000);
+      fetchCommissionSettings();
+    }, 30000); // Increased from 5 seconds to 30 seconds
+    
     return () => clearInterval(interval);
   }, [user, profile]);
 
   const fetchCommissionSettings = async () => {
+    if (isLoadingSettings) return; // Prevent multiple simultaneous calls
+    
+    setIsLoadingSettings(true);
     try {
       // Use simple fetch since this endpoint is now public
       const response = await fetch('/api/admin/wallet', {
         method: 'GET',
         cache: 'no-cache',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       
       if (response.ok) {
@@ -93,14 +104,31 @@ export default function WalletSection() {
         }
       } else {
         console.error('❌ Failed to fetch wallet settings:', response.status);
+        // Set default values to prevent undefined states
+        setWalletSettings({
+          inr_wallet_enabled: true,
+          usd_wallet_enabled: true,
+          usdt_wallet_enabled: true,
+        });
       }
     } catch (error) {
       console.error('Error fetching commission settings:', error);
+      // Set default values to prevent undefined states
+      setWalletSettings({
+        inr_wallet_enabled: true,
+        usd_wallet_enabled: true,
+        usdt_wallet_enabled: true,
+      });
+    } finally {
+      setIsLoadingSettings(false);
     }
   };
 
   const loadTransactions = async () => {
-    if (!user || !firebaseUser) return;
+    if (!user || !firebaseUser) {
+      setLoading(false);
+      return;
+    }
     
     try {
       const response = await makeAuthenticatedRequest(firebaseUser, '/api/payments');
@@ -366,7 +394,11 @@ export default function WalletSection() {
           <div className="flex justify-center mb-6">
             <div className="bg-white/10 rounded-2xl p-2 flex space-x-2">
               <button
-                onClick={() => setCurrency('INR')}
+                onClick={() => {
+                  if (currency !== 'INR') {
+                    setCurrency('INR');
+                  }
+                }}
                 className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currency === 'INR'
                     ? 'bg-white text-slate-800 shadow-lg'
@@ -376,7 +408,11 @@ export default function WalletSection() {
                 🇮🇳 INR
               </button>
               <button
-                onClick={() => setCurrency('USD')}
+                onClick={() => {
+                  if (currency !== 'USD') {
+                    setCurrency('USD');
+                  }
+                }}
                 className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currency === 'USD'
                     ? 'bg-white text-slate-800 shadow-lg'
@@ -386,7 +422,11 @@ export default function WalletSection() {
                 🇺🇸 USD
               </button>
               <button
-                onClick={() => setCurrency('USDT')}
+                onClick={() => {
+                  if (currency !== 'USDT') {
+                    setCurrency('USDT');
+                  }
+                }}
                 className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   currency === 'USDT'
                     ? 'bg-white text-slate-800 shadow-lg'
