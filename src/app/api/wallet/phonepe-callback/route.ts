@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyPhonePePayment, verifyPhonePePaymentMock } from '@/lib/payments/phonepe';
-import { db, wallet_transactions, users } from '@/lib/db';
+import { db, wallet_transactions, users, profiles } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
@@ -64,21 +64,21 @@ export async function POST(request: NextRequest) {
         .where(eq(wallet_transactions.id, transaction.id));
 
       // Update user's wallet balance
-      const [user] = await db.select()
-        .from(users)
-        .where(eq(users.id, transaction.user_id));
+      const [profile] = await db.select()
+        .from(profiles)
+        .where(eq(profiles.user_id, transaction.user_id));
 
-      if (user) {
-        const currentBalance = parseFloat(user.inr_balance || '0');
+      if (profile) {
+        const currentBalance = parseFloat(profile.wallet_balance_inr || '0');
         const depositAmount = parseFloat(transaction.amount);
         const newBalance = currentBalance + depositAmount;
 
-        await db.update(users)
+        await db.update(profiles)
           .set({
-            inr_balance: newBalance.toFixed(2),
+            wallet_balance_inr: newBalance.toFixed(2),
             updated_at: new Date(),
           })
-          .where(eq(users.id, transaction.user_id));
+          .where(eq(profiles.user_id, transaction.user_id));
 
         console.log(`✅ Wallet updated: +₹${depositAmount} (New balance: ₹${newBalance})`);
       }
