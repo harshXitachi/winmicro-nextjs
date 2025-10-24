@@ -3,18 +3,9 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "🔍 Checking environment variables..."
-        - echo "RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-NOT SET}"
-        - echo "RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-NOT SET}"
-        - echo "RAZORPAY_MODE: ${RAZORPAY_MODE:-NOT SET}"
-        - echo "PHONEPE_MERCHANT_ID: ${PHONEPE_MERCHANT_ID:-NOT SET}"
-        - echo "PHONEPE_SECRET_KEY: ${PHONEPE_SECRET_KEY:-NOT SET}"
-        - echo "PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-NOT SET}"
-        - echo "PAYPAL_SECRET: ${PAYPAL_SECRET:-NOT SET}"
         - npm install --legacy-peer-deps
     build:
       commands:
-        - echo "🔧 Building with environment variables..."
         - npm run build
   artifacts:
     baseDirectory: .next
