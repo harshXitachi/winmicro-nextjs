@@ -65,10 +65,24 @@ export default function WalletSection() {
     if (!user || !profile) return;
     
     const interval = setInterval(() => {
+      console.log('🔄 Refreshing wallet settings...');
       fetchCommissionSettings();
     }, 30000); // Increased from 5 seconds to 30 seconds
     
     return () => clearInterval(interval);
+  }, [user, profile]);
+
+  // Also refresh settings when component becomes visible (user switches to wallet tab)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user && profile) {
+        console.log('👁️ Page became visible, refreshing settings...');
+        fetchCommissionSettings();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [user, profile]);
 
   const fetchCommissionSettings = async () => {
@@ -88,19 +102,31 @@ export default function WalletSection() {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Wallet settings fetched:', data.settings);
+        console.log('📊 Full API response:', data);
         
-        if (data.settings?.commission_percentage) {
-          setCommissionRate(parseFloat(data.settings.commission_percentage));
-        }
         if (data.settings) {
+          // Update commission settings
+          if (data.settings.commission_percentage) {
+            setCommissionRate(parseFloat(data.settings.commission_percentage));
+          }
+          
           setCommissionOnDeposits(data.settings.commission_on_deposits ?? true);
           setCommissionOnTransfers(data.settings.commission_on_transfers ?? true);
-          setWalletSettings({
-            inr_wallet_enabled: data.settings.inr_wallet_enabled ?? true,
-            usd_wallet_enabled: data.settings.usd_wallet_enabled ?? true,
-            usdt_wallet_enabled: data.settings.usdt_wallet_enabled ?? true,
-          });
-          console.log('✅ USD Wallet enabled:', data.settings.usd_wallet_enabled);
+          
+          // Update wallet settings with proper boolean handling
+          const newWalletSettings = {
+            inr_wallet_enabled: Boolean(data.settings.inr_wallet_enabled),
+            usd_wallet_enabled: Boolean(data.settings.usd_wallet_enabled),
+            usdt_wallet_enabled: Boolean(data.settings.usdt_wallet_enabled),
+          };
+          
+          setWalletSettings(newWalletSettings);
+          console.log('✅ Updated wallet settings:', newWalletSettings);
+          console.log('✅ INR Wallet enabled:', newWalletSettings.inr_wallet_enabled);
+          console.log('✅ USD Wallet enabled:', newWalletSettings.usd_wallet_enabled);
+          console.log('✅ USDT Wallet enabled:', newWalletSettings.usdt_wallet_enabled);
+        } else {
+          console.warn('⚠️ No settings found in API response');
         }
       } else {
         console.error('❌ Failed to fetch wallet settings:', response.status);
@@ -382,12 +408,24 @@ export default function WalletSection() {
         <div className="text-center text-white">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-3xl font-bold">Multi-Currency Wallet</h2>
-            <button
-              onClick={() => setShowCurrencySelector(true)}
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors"
-            >
-              Default: {defaultCurrency} {getCurrencySymbol(defaultCurrency)}
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => {
+                  console.log('🔄 Manual refresh triggered');
+                  fetchCommissionSettings();
+                }}
+                className="px-3 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors"
+                title="Refresh wallet settings"
+              >
+                🔄
+              </button>
+              <button
+                onClick={() => setShowCurrencySelector(true)}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors"
+              >
+                Default: {defaultCurrency} {getCurrencySymbol(defaultCurrency)}
+              </button>
+            </div>
           </div>
           
           {/* Currency Toggle */}

@@ -41,17 +41,31 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(wallet_transactions.created_at))
       .limit(50);
 
+    // Ensure we always return proper settings with fallbacks
+    const defaultSettings = {
+      commission_percentage: '2.00',
+      commission_on_deposits: true,
+      commission_on_transfers: true,
+      inr_wallet_enabled: true,
+      usd_wallet_enabled: true,
+      usdt_wallet_enabled: true,
+    };
+
+    const finalSettings = settings ? {
+      commission_percentage: settings.commission_percentage || defaultSettings.commission_percentage,
+      commission_on_deposits: settings.commission_on_deposits ?? defaultSettings.commission_on_deposits,
+      commission_on_transfers: settings.commission_on_transfers ?? defaultSettings.commission_on_transfers,
+      inr_wallet_enabled: settings.inr_wallet_enabled ?? defaultSettings.inr_wallet_enabled,
+      usd_wallet_enabled: settings.usd_wallet_enabled ?? defaultSettings.usd_wallet_enabled,
+      usdt_wallet_enabled: settings.usdt_wallet_enabled ?? defaultSettings.usdt_wallet_enabled,
+    } : defaultSettings;
+
+    console.log('📊 Final settings being returned:', finalSettings);
+
     return NextResponse.json({
       success: true,
       wallets,
-      settings: settings || {
-        commission_percentage: '2.00',
-        commission_on_deposits: true,
-        commission_on_transfers: true,
-        inr_wallet_enabled: true,
-        usd_wallet_enabled: true,
-        usdt_wallet_enabled: true,
-      },
+      settings: finalSettings,
       recentCommissions,
     });
   } catch (error) {
