@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
       await db.update(wallet_transactions)
         .set({
           status: 'completed',
-          updated_at: new Date(),
         })
         .where(eq(wallet_transactions.id, transaction.id));
 
@@ -88,7 +87,6 @@ export async function POST(request: NextRequest) {
       await db.update(wallet_transactions)
         .set({
           status: 'failed',
-          updated_at: new Date(),
         })
         .where(eq(wallet_transactions.id, transaction.id));
 
