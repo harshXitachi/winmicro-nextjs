@@ -742,7 +742,7 @@ export default function WalletSection() {
                       isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200 text-gray-900'
                     }`}
                     placeholder="10-digit mobile number"
-                    maxLength="10"
+                    maxLength={10}
                   />
                   <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
                     Required for PhonePe payment
