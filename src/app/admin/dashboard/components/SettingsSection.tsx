@@ -159,6 +159,9 @@ Last updated: ${new Date().toLocaleDateString()}
             max_withdrawal_usdt: data.settings.max_withdrawal_usdt || '2000.00',
           };
           console.log('✅ Loaded settings:', newSettings);
+          console.log('✅ INR Wallet enabled:', newSettings.inr_wallet_enabled);
+          console.log('✅ USD Wallet enabled:', newSettings.usd_wallet_enabled);
+          console.log('✅ USDT Wallet enabled:', newSettings.usdt_wallet_enabled);
           setCommissionSettings(newSettings);
         } else {
           console.warn('⚠️ No settings in response, using defaults');
@@ -231,7 +234,8 @@ Last updated: ${new Date().toLocaleDateString()}
       }
       
       // Log update for debugging
-      console.log('Updating commission settings:', commissionSettings);
+      console.log('🔄 Updating commission settings:', commissionSettings);
+      console.log('🔑 Admin session:', adminSession ? 'Present' : 'Missing');
       
       const response = await fetch('/api/admin/wallet', {
         method: 'PATCH',
@@ -242,22 +246,25 @@ Last updated: ${new Date().toLocaleDateString()}
         body: JSON.stringify(commissionSettings),
       });
 
-      console.log('Response status:', response.status);
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
       
       const data = await response.json();
-      console.log('Response data:', data);
+      console.log('📊 Response data:', data);
 
       if (response.ok) {
         alert('✅ Commission settings updated successfully! Changes will apply immediately to all deposits and transfers.');
+        console.log('✅ Settings updated successfully');
         // Reload settings to confirm changes persisted
         setTimeout(() => {
           loadSettings();
         }, 500);
       } else {
+        console.error('❌ API Error:', data);
         alert(`❌ Failed to update commission settings: ${data.error || 'Unknown error'}`);
       }
     } catch (error: any) {
-      console.error('Error updating commission settings:', error);
+      console.error('❌ Network Error:', error);
       alert(`❌ Error: ${error.message || 'Failed to update commission settings. Please try again.'}`);
     } finally {
       setSaving(false);
@@ -531,6 +538,45 @@ Last updated: ${new Date().toLocaleDateString()}
                 ) : (
                   'Save Commission Settings'
                 )}
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    console.log('🔍 Testing database connection...');
+                    const response = await fetch('/api/debug/commission-settings');
+                    const data = await response.json();
+                    console.log('🔍 Debug response:', data);
+                    alert(`Database test: ${data.success ? 'Success' : 'Failed'}\nRecords: ${data.count}\nCheck console for details.`);
+                  } catch (error) {
+                    console.error('❌ Debug test failed:', error);
+                    alert('Database test failed. Check console for details.');
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              >
+                🔍 Test DB
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    console.log('🔧 Creating default settings...');
+                    const response = await fetch('/api/debug/commission-settings', { method: 'POST' });
+                    const data = await response.json();
+                    console.log('🔧 Create response:', data);
+                    if (data.success) {
+                      alert('Default settings created successfully! Refreshing...');
+                      loadSettings();
+                    } else {
+                      alert(`Failed to create settings: ${data.error}`);
+                    }
+                  } catch (error) {
+                    console.error('❌ Create settings failed:', error);
+                    alert('Failed to create default settings. Check console for details.');
+                  }
+                }}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
+              >
+                🔧 Create Defaults
               </button>
               <button
                 onClick={() => {
