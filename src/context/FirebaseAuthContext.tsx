@@ -115,12 +115,17 @@ export const FirebaseAuthProvider = ({ children }: { children: React.ReactNode }
         // Get Firebase ID token and set it as a cookie
         try {
           const idToken = await firebaseUser.getIdToken();
+          
+          // Set cookie client-side (backup for AWS Amplify)
+          document.cookie = `firebase_token=${idToken}; path=/; max-age=3600; SameSite=Lax; Secure`;
+          
+          // Also set via API
           await fetch('/api/auth/set-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: idToken }),
           });
-          console.log('✅ Firebase token set as cookie');
+          console.log('✅ Firebase token set as cookie (client + server)');
         } catch (error) {
           console.error('❌ Failed to set Firebase token cookie:', error);
         }
@@ -129,6 +134,8 @@ export const FirebaseAuthProvider = ({ children }: { children: React.ReactNode }
       } else {
         setProfile(null);
         setIsAdmin(false);
+        // Clear cookie on logout
+        document.cookie = 'firebase_token=; path=/; max-age=0';
       }
       
       setLoading(false);

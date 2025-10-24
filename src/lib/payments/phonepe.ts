@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { createPhonePePaymentMock, verifyPhonePePaymentMock } from './phonepe-mock';
 
 // PhonePe Gateway Configuration (use production by default; require env credentials)
 const PHONEPE_BASE_URL = process.env.PHONEPE_BASE_URL || 'https://api.phonepe.com/apis/hermes';
@@ -228,3 +229,6 @@ export async function refundPhonePePayment(
     throw error;
   }
 }
+
+// Export mock functions for development/testing
+export { createPhonePePaymentMock, verifyPhonePePaymentMock };

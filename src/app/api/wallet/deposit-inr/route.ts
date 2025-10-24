@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, getCurrentUserFromRequest } from '@/lib/auth';
-import { createRazorpayOrder } from '@/lib/payments/razorpay';
+import { createPhonePePayment, createPhonePePaymentMock } from '@/lib/payments/phonepe';
 import { db, wallet_transactions, users, commission_settings, admin_wallets, profiles } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
@@ -10,23 +10,36 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     console.log('🔍 POST /api/wallet/deposit-inr - Request received');
+    console.log('Headers check:', {
+      hasAuth: !!request.headers.get('authorization'),
+      hasFirebaseToken: !!request.headers.get('x-firebase-token'),
+      hasCookie: !!request.headers.get('cookie'),
+    });
     
     // Try Firebase auth first
     let currentUser = await getCurrentUserFromRequest(request);
     
     // Fallback to server-side auth
     if (!currentUser) {
+      console.log('⚠️ Trying fallback auth...');
       currentUser = await getCurrentUser();
     }
     
     if (!currentUser) {
-      console.log('❌ No authenticated user found');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.error('❌ No authenticated user found');
+      console.error('Authentication failed - Please check:');
+      console.error('1. Firebase token is being sent from client');
+      console.error('2. Firebase Admin credentials are configured in AWS Amplify');
+      console.error('3. User is properly logged in');
+      return NextResponse.json({ 
+        error: 'Unauthorized - Please log in again',
+        details: 'Authentication token missing or invalid'
+      }, { status: 401 });
     }
     
     console.log('✅ Authenticated user:', currentUser.userId);
 
-    const { amount } = await request.json();
+    const { amount, phoneNumber } = await request.json();
 
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
@@ -34,6 +47,10 @@ export async function POST(request: NextRequest) {
 
     if (amount < 100) {
       return NextResponse.json({ error: 'Minimum deposit amount is ₹100' }, { status: 400 });
+    }
+
+    if (!phoneNumber || phoneNumber.length < 10) {
+      return NextResponse.json({ error: 'Valid phone number is required for PhonePe payment' }, { status: 400 });
     }
 
     // Get commission settings
@@ -67,7 +84,7 @@ export async function POST(request: NextRequest) {
     const payableAmount = parseFloat((amount + commissionAmount).toFixed(2));
 
     // Create transaction record (pending)
-    const transactionId = `RAZORPAY_${Date.now()}_${currentUser.userId.substring(0, 8)}`;
+    const transactionId = `PHONEPE_${Date.now()}_${currentUser.userId.substring(0, 8)}`;
     
     const [transaction] = await db.insert(wallet_transactions)
       .values({
@@ -76,29 +93,51 @@ export async function POST(request: NextRequest) {
         type: 'credit',
         transaction_type: 'deposit',
         currency: 'INR',
-        description: `Deposit of ₹${amount} via Razorpay`,
+        description: `Deposit of ₹${amount} via PhonePe`,
         status: 'pending',
         reference_id: transactionId,
         commission_amount: commissionAmount.toFixed(2),
       })
       .returning();
 
-    // Create Razorpay order for total payable (amount + commission if any)
-    const razorpayOrder = await createRazorpayOrder(
-      currentUser.userId,
-      Math.round(payableAmount * 100), // Convert to paise
-      `Wallet Deposit - ₹${amount}`,
-      transactionId
-    );
+    // Create PhonePe payment for total payable (amount + commission if any)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const redirectUrl = `${baseUrl}/dashboard`; // Redirect to dashboard instead of wallet page
+    const callbackUrl = `${baseUrl}/api/wallet/phonepe-callback`;
+
+    // Use mock implementation for development, real implementation for production
+    const useMock = process.env.NODE_ENV === 'development' || !process.env.PHONEPE_MERCHANT_ID;
+    
+    let phonePePayment;
+    if (useMock) {
+      console.log('🧪 Using PhonePe Mock Implementation');
+      phonePePayment = await createPhonePePaymentMock(
+        currentUser.userId,
+        transactionId,
+        payableAmount,
+        phoneNumber,
+        redirectUrl,
+        callbackUrl
+      );
+    } else {
+      console.log('💰 Using PhonePe Live Implementation');
+      phonePePayment = await createPhonePePayment(
+        currentUser.userId,
+        transactionId,
+        payableAmount,
+        phoneNumber,
+        redirectUrl,
+        callbackUrl
+      );
+    }
 
     return NextResponse.json({
       success: true,
       transaction: transaction,
-      orderId: razorpayOrder.orderId,
-      keyId: razorpayOrder.keyId,
-      amount: razorpayOrder.amount,
-      currency: razorpayOrder.currency,
+      paymentUrl: phonePePayment.url,
       transactionId: transactionId,
+      paymentMethod: 'phonepe',
+      isMock: useMock,
       commission: {
         enabled: commissionEnabled,
         percentage: commissionPercentage,

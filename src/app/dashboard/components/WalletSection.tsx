@@ -27,6 +27,7 @@ export default function WalletSection() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [amount, setAmount] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [currency, setCurrency] = useState<Currency>('INR');
   const [defaultCurrency, setDefaultCurrency] = useState<Currency>('INR');
   const [processing, setProcessing] = useState(false);
@@ -59,6 +60,46 @@ export default function WalletSection() {
       setIsInitialized(true);
     }
   }, [user, profile, firebaseUser, isInitialized]);
+
+  // Refresh profile when returning from payment (check URL params)
+  useEffect(() => {
+    const checkForPaymentReturn = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentSuccess = urlParams.get('payment_success');
+      const transactionId = urlParams.get('transactionId');
+      
+      if (paymentSuccess === 'true' || transactionId) {
+        console.log('🔄 Payment return detected, refreshing profile...');
+        refreshProfile();
+        loadTransactions();
+        
+        // Clean up URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    };
+
+    // Check immediately and also on focus (when returning from payment)
+    checkForPaymentReturn();
+    window.addEventListener('focus', checkForPaymentReturn);
+    
+    return () => {
+      window.removeEventListener('focus', checkForPaymentReturn);
+    };
+  }, [refreshProfile]);
+
+  // Refresh profile periodically to catch payment updates
+  useEffect(() => {
+    if (!user || !profile) return;
+    
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 Periodic profile refresh...');
+      refreshProfile();
+      loadTransactions();
+    }, 10000); // Refresh every 10 seconds
+    
+    return () => clearInterval(refreshInterval);
+  }, [user, profile, refreshProfile]);
 
   // Refresh settings every 30 seconds to catch admin changes (reduced frequency)
   useEffect(() => {
@@ -216,6 +257,12 @@ export default function WalletSection() {
       return;
     }
     
+    // For INR deposits, check phone number
+    if (currency === 'INR' && (!phoneNumber || phoneNumber.length < 10)) {
+      alert('Valid phone number is required for PhonePe payment');
+      return;
+    }
+    
     setProcessing(true);
     try {
       const depositAmount = parseFloat(amount);
@@ -231,6 +278,7 @@ export default function WalletSection() {
           method: 'POST',
           body: JSON.stringify({
             amount: depositAmount,
+            phoneNumber: phoneNumber,
           }),
         });
 
@@ -242,60 +290,22 @@ export default function WalletSection() {
           return;
         }
 
-        // Initialize Razorpay payment
-        if (data.orderId && data.keyId) {
-          const options = {
-            key: data.keyId,
-            amount: data.amount,
-            currency: data.currency,
-            name: 'WinMicro',
-            description: `Wallet Deposit - ₹${depositAmount}`,
-            order_id: data.orderId,
-            handler: async function (response: any) {
-              console.log('✅ Razorpay payment successful:', response);
-              
-              // Call our callback to verify and process payment
-              try {
-                const callbackRes = await fetch('/api/wallet/razorpay-callback', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    razorpay_order_id: response.razorpay_order_id,
-                    razorpay_payment_id: response.razorpay_payment_id,
-                    razorpay_signature: response.razorpay_signature,
-                  }),
-                });
-
-                const callbackData = await callbackRes.json();
-                
-                if (callbackRes.ok) {
-                  alert('Payment successful! Your wallet has been credited.');
-                  await refreshProfile(); // Refresh profile to show updated balance
-                  setShowDepositModal(false);
-                  setAmount('');
-                } else {
-                  alert('Payment verification failed. Please contact support.');
-                }
-              } catch (error) {
-                console.error('Payment verification error:', error);
-                alert('Payment verification failed. Please contact support.');
-              }
-            },
-            prefill: {
-              name: firebaseUser.displayName || '',
-              email: firebaseUser.email || '',
-            },
-            theme: {
-              color: '#3B82F6',
-            },
-          };
-
-          const razorpay = new (window as any).Razorpay(options);
-          razorpay.open();
+        // Handle PhonePe payment
+        if (data.paymentUrl && data.transactionId) {
+          console.log('✅ PhonePe payment URL received:', data.paymentUrl);
+          
+          if (data.isMock) {
+            console.log('🧪 Using PhonePe Mock - redirecting to mock payment page');
+            // For mock payments, redirect to our mock payment page
+            window.location.href = data.paymentUrl;
+          } else {
+            console.log('💰 Using PhonePe Live - redirecting to PhonePe');
+            // For live payments, redirect to PhonePe
+            window.location.href = data.paymentUrl;
+          }
         } else {
-          alert('Failed to initialize payment. Please try again.');
+          console.error('❌ No payment URL received from PhonePe');
+          alert('Failed to get payment URL from PhonePe');
         }
       } else if (currency === 'USD') {
         // For USD, use PayPal
@@ -691,7 +701,11 @@ export default function WalletSection() {
                 Deposit {currency}
               </h3>
               <button
-                onClick={() => setShowDepositModal(false)}
+                onClick={() => {
+                  setShowDepositModal(false);
+                  setAmount('');
+                  setPhoneNumber('');
+                }}
                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"
               >
                 <i className="ri-close-line text-xl"></i>
@@ -715,6 +729,27 @@ export default function WalletSection() {
                 />
               </div>
               
+              {currency === 'INR' && (
+                <div>
+                  <label className={`block text-sm font-semibold mb-3 ${isDarkMode ? 'text-slate-300' : 'text-gray-700'}`}>
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className={`w-full px-4 py-4 border rounded-xl text-lg ${
+                      isDarkMode ? 'bg-slate-700 border-slate-600 text-white' : 'bg-white border-gray-200 text-gray-900'
+                    }`}
+                    placeholder="10-digit mobile number"
+                    maxLength="10"
+                  />
+                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-400' : 'text-gray-500'}`}>
+                    Required for PhonePe payment
+                  </p>
+                </div>
+              )}
+              
               {amount && (
                 <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-slate-700' : 'bg-gray-50'}`}>
                   <div className="space-y-2 text-sm">
@@ -732,7 +767,7 @@ export default function WalletSection() {
                     )}
                     <div className="flex justify-between">
                       <span>Gateway:</span>
-                      <span className="font-semibold">{getPaymentGateway(currency)}</span>
+                      <span className="font-semibold">{currency === 'INR' ? 'PhonePe' : getPaymentGateway(currency)}</span>
                     </div>
                     <div className="flex justify-between font-semibold pt-2 border-t">
                       <span>Total to Pay:</span>
@@ -747,17 +782,21 @@ export default function WalletSection() {
             
             <div className="flex space-x-4 mt-8">
               <button
-                onClick={() => setShowDepositModal(false)}
+                onClick={() => {
+                  setShowDepositModal(false);
+                  setAmount('');
+                  setPhoneNumber('');
+                }}
                 className="flex-1 py-4 px-6 border rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-slate-700"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeposit}
-                disabled={!amount || processing}
+                disabled={!amount || processing || (currency === 'INR' && (!phoneNumber || phoneNumber.length < 10))}
                 className="flex-1 py-4 px-6 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 disabled:opacity-50"
               >
-                {processing ? 'Processing...' : `Deposit ${currency}`}
+                {processing ? 'Processing...' : `Proceed to ${currency === 'INR' ? 'PhonePe' : 'Payment'}`}
               </button>
             </div>
           </div>

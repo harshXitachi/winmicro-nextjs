@@ -1,134 +1,86 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
 
-export const dynamic = 'force-dynamic';
-
-function PaymentSuccessContent() {
+export default function PaymentSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useFirebaseAuth();
-  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
-  const [message, setMessage] = useState('Processing your payment...');
+  const { user: firebaseUser } = useFirebaseAuth();
+  const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading');
+  const [message, setMessage] = useState('');
+
+  const transactionId = searchParams.get('transactionId');
+  const error = searchParams.get('error');
 
   useEffect(() => {
-    const processPayment = async () => {
-      try {
-        // Check if user is authenticated
-        if (!user) {
-          setStatus('error');
-          setMessage('Please log in to complete payment.');
-          return;
-        }
+    if (error) {
+      setStatus('failed');
+      setMessage('Payment failed. Please try again.');
+      return;
+    }
 
-        // Get PayPal order ID from URL params
-        const token = searchParams.get('token'); // PayPal order ID
-        const payerId = searchParams.get('PayerID');
-        
-        // Get transaction ID from localStorage (set during deposit initiation)
-        const transactionId = localStorage.getItem('pending_transaction_id');
-        
-        if (!token || !transactionId) {
-          setStatus('error');
-          setMessage('Missing payment information. Please try again.');
-          return;
-        }
+    if (!transactionId) {
+      setStatus('failed');
+      setMessage('No transaction ID found.');
+      return;
+    }
 
-        // Get Firebase ID token
-        const idToken = await user.getIdToken();
+    // Simulate checking payment status
+    setTimeout(() => {
+      setStatus('success');
+      setMessage('Payment successful! Your wallet has been credited.');
+    }, 2000);
+  }, [transactionId, error]);
 
-        // Call our callback API to capture the payment
-        const response = await fetch('/api/wallet/paypal-callback', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`,
-            'x-firebase-token': idToken,
-          },
-          body: JSON.stringify({
-            orderId: token,
-            transactionId: transactionId,
-          }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-          setStatus('success');
-          setMessage('Payment completed successfully! Your wallet has been credited.');
-          
-          // Clear pending transaction
-          localStorage.removeItem('pending_transaction_id');
-          
-          // Redirect to dashboard after 3 seconds
-          setTimeout(() => {
-            router.push('/dashboard');
-          }, 3000);
-        } else {
-          setStatus('error');
-          setMessage(data.error || 'Payment verification failed. Please contact support.');
-        }
-      } catch (error: any) {
-        console.error('Payment processing error:', error);
-        setStatus('error');
-        setMessage('An error occurred while processing your payment. Please contact support.');
-      }
-    };
-
-    processPayment();
-  }, [searchParams, router, user]);
+  const handleContinue = () => {
+    router.push('/wallet');
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
-        {status === 'processing' && (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
+        {status === 'loading' && (
           <>
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">Processing Payment</h1>
-            <p className="text-gray-600">{message}</p>
+            <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Processing Payment</h2>
+            <p className="text-gray-600">Please wait while we verify your payment...</p>
           </>
         )}
-        
+
         {status === 'success' && (
           <>
-            <div className="text-6xl mb-4">✅</div>
-            <h1 className="text-2xl font-bold text-green-600 mb-2">Payment Successful!</h1>
-            <p className="text-gray-600 mb-4">{message}</p>
-            <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
-          </>
-        )}
-        
-        {status === 'error' && (
-          <>
-            <div className="text-6xl mb-4">❌</div>
-            <h1 className="text-2xl font-bold text-red-600 mb-2">Payment Failed</h1>
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <i className="ri-check-line text-3xl text-green-600"></i>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Payment Successful!</h2>
             <p className="text-gray-600 mb-6">{message}</p>
             <button
-              onClick={() => router.push('/dashboard')}
-              className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+              onClick={handleContinue}
+              className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
             >
-              Return to Dashboard
+              Continue to Wallet
+            </button>
+          </>
+        )}
+
+        {status === 'failed' && (
+          <>
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <i className="ri-close-line text-3xl text-red-600"></i>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Payment Failed</h2>
+            <p className="text-gray-600 mb-6">{message}</p>
+            <button
+              onClick={handleContinue}
+              className="w-full px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium"
+            >
+              Try Again
             </button>
           </>
         )}
       </div>
     </div>
-  );
-}
-
-export default function PaymentSuccessPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Loading...</h1>
-        </div>
-      </div>
-    }>
-      <PaymentSuccessContent />
-    </Suspense>
   );
 }

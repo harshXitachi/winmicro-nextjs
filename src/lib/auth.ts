@@ -164,13 +164,19 @@ export async function getCurrentUserFromRequest(request: Request): Promise<JWTPa
     // Also try firebase_token from cookie header
     if (!idToken) {
       const cookieHeader = request.headers.get('cookie');
+      console.log('🍪 Cookie header:', cookieHeader ? 'present' : 'missing');
       if (cookieHeader) {
         const cookies = cookieHeader.split(';').map(c => c.trim());
+        console.log('🍪 All cookies:', cookies.map(c => c.split('=')[0]).join(', '));
         const firebaseCookie = cookies.find(c => c.startsWith('firebase_token='));
         if (firebaseCookie) {
           idToken = firebaseCookie.split('=')[1];
           console.log('🍪 Firebase token from cookie, length:', idToken.length);
+        } else {
+          console.log('⚠️ No firebase_token cookie found');
         }
+      } else {
+        console.log('⚠️ No cookie header at all');
       }
     }
     

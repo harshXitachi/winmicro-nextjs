@@ -100,6 +100,11 @@ export default function WalletPage() {
       return;
     }
 
+    if (!phoneNumber || phoneNumber.length < 10) {
+      alert('Please enter a valid 10-digit phone number');
+      return;
+    }
+
     if (!firebaseUser) {
       alert('Please log in to continue');
       return;
@@ -107,12 +112,13 @@ export default function WalletPage() {
 
     setIsProcessing(true);
     try {
-      console.log('🔄 Initiating INR deposit...');
+      console.log('🔄 Initiating INR deposit via PhonePe...');
       
       const res = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/deposit-inr', {
         method: 'POST',
         body: JSON.stringify({
           amount: parseFloat(depositAmount),
+          phoneNumber: phoneNumber,
         }),
       });
 
@@ -125,56 +131,22 @@ export default function WalletPage() {
         return;
       }
 
-      // Initialize Razorpay payment
-      if (data.orderId && data.keyId) {
-        const options = {
-          key: data.keyId,
-          amount: data.amount,
-          currency: data.currency,
-          name: 'WinMicro',
-          description: `Wallet Deposit - ₹${depositAmount}`,
-          order_id: data.orderId,
-          handler: async function (response: any) {
-            console.log('✅ Razorpay payment successful:', response);
-            
-            // Call our callback to verify and process payment
-            try {
-              const callbackRes = await fetch('/api/wallet/razorpay-callback', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                }),
-              });
-
-              const callbackData = await callbackRes.json();
-              
-              if (callbackRes.ok) {
-                alert('Payment successful! Your wallet has been credited.');
-                window.location.reload(); // Refresh to show updated balance
-              } else {
-                alert('Payment verification failed. Please contact support.');
-              }
-            } catch (error) {
-              console.error('Payment verification error:', error);
-              alert('Payment verification failed. Please contact support.');
-            }
-          },
-          prefill: {
-            name: firebaseUser.displayName || '',
-            email: firebaseUser.email || '',
-          },
-          theme: {
-            color: '#3B82F6',
-          },
-        };
-
-        const razorpay = new (window as any).Razorpay(options);
-        razorpay.open();
+      // Handle PhonePe payment
+      if (data.paymentUrl && data.transactionId) {
+        console.log('✅ PhonePe payment URL received:', data.paymentUrl);
+        
+        if (data.isMock) {
+          console.log('🧪 Using PhonePe Mock - redirecting to mock payment page');
+          // For mock payments, redirect to our mock payment page
+          window.location.href = data.paymentUrl;
+        } else {
+          console.log('💰 Using PhonePe Live - redirecting to PhonePe');
+          // For live payments, redirect to PhonePe
+          window.location.href = data.paymentUrl;
+        }
+      } else {
+        console.error('❌ No payment URL received from PhonePe');
+        alert('Failed to get payment URL from PhonePe');
       }
     } catch (error) {
       console.error('Deposit error:', error);
@@ -471,7 +443,7 @@ export default function WalletPage() {
                       disabled={isProcessing || !!(commissionSettings && !commissionSettings.inr_wallet_enabled)}
                       className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
                     >
-                      {isProcessing ? 'Processing...' : 'Proceed to Razorpay'}
+                      {isProcessing ? 'Processing...' : 'Proceed to PhonePe'}
                     </button>
                   </form>
                 ) : (
@@ -525,7 +497,7 @@ export default function WalletPage() {
                 <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <h4 className="font-semibold text-blue-900 mb-2">Payment Methods</h4>
                   <ul className="text-sm text-blue-800 space-y-1">
-                    <li>💳 <strong>INR:</strong> Razorpay (Credit/Debit Card, UPI, Wallet)</li>
+                    <li>📱 <strong>INR:</strong> PhonePe (UPI, Credit/Debit Card, Wallet)</li>
                     <li>💳 <strong>USD:</strong> PayPal (All payment methods)</li>
                   </ul>
                 </div>

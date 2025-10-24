@@ -1,115 +1,146 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, wallet_transactions, profiles, admin_wallets } from '@/lib/db';
-import { eq, and } from 'drizzle-orm';
-import { verifyPhonePePayment } from '@/lib/payments/phonepe';
-import { verifyPhonePePaymentMock } from '@/lib/payments/phonepe-mock';
+import { verifyPhonePePayment, verifyPhonePePaymentMock } from '@/lib/payments/phonepe';
+import { db, wallet_transactions, users } from '@/lib/db';
+import { eq } from 'drizzle-orm';
 
-// PhonePe callback/verification endpoint
+export const dynamic = 'force-dynamic';
+
 // POST /api/wallet/phonepe-callback
 export async function POST(request: NextRequest) {
   try {
-    let body: any = {};
-    try {
-      body = await request.json();
-    } catch (_) {
-      body = {};
+    console.log('📞 PhonePe Callback received');
+    
+    const body = await request.json();
+    console.log('PhonePe callback body:', body);
+
+    const { merchantTransactionId, transactionId, code, state } = body;
+
+    if (!merchantTransactionId && !transactionId) {
+      console.error('❌ No transaction ID in callback');
+      return NextResponse.json({ error: 'Transaction ID missing' }, { status: 400 });
     }
 
-    // PhonePe typically sends merchantTransactionId; allow fallback query params
-    const merchantTransactionId = body.merchantTransactionId || body.transactionId || request.nextUrl.searchParams.get('merchantTransactionId') || request.nextUrl.searchParams.get('transactionId');
+    const txId = merchantTransactionId || transactionId;
 
-    if (!merchantTransactionId) {
-      return NextResponse.json(
-        { error: 'Missing merchantTransactionId' },
-        { status: 400 }
-      );
-    }
-
-    // Find pending transaction created for this merchantTransactionId
-    const [transaction] = await db
-      .select()
+    // Find the transaction in our database
+    const [transaction] = await db.select()
       .from(wallet_transactions)
-      .where(
-        and(
-          eq(wallet_transactions.reference_id, merchantTransactionId),
-          eq(wallet_transactions.status, 'pending')
-        )
-      );
+      .where(eq(wallet_transactions.reference_id, txId));
 
     if (!transaction) {
-      // It's possible we already processed it; treat as idempotent
-      return NextResponse.json({ success: true, message: 'No pending transaction found or already processed' });
+      console.error('❌ Transaction not found:', txId);
+      return NextResponse.json({ error: 'Transaction not found' }, { status: 404 });
     }
 
-    // Verify with PhonePe status API (or mock)
-    const isPhonePeMockMode = process.env.PHONEPE_MOCK_MODE === 'true';
+    console.log('📊 Found transaction:', transaction);
+
+    // Use mock verification for development, real verification for production
+    const useMock = process.env.NODE_ENV === 'development' || !process.env.PHONEPE_MERCHANT_ID;
     
-    let verify;
-    if (isPhonePeMockMode) {
-      console.log('🧪 Using PhonePe MOCK verification');
-      verify = await verifyPhonePePaymentMock(merchantTransactionId);
+    let verificationResult;
+    if (useMock) {
+      console.log('🧪 Using PhonePe Mock Verification');
+      verificationResult = await verifyPhonePePaymentMock(txId);
     } else {
-      verify = await verifyPhonePePayment(merchantTransactionId);
+      console.log('💰 Using PhonePe Live Verification');
+      verificationResult = await verifyPhonePePayment(txId);
     }
-    
-    const normalizedStatus = (verify.status || '').toUpperCase();
-    const isSuccess = normalizedStatus === 'COMPLETED' || normalizedStatus === 'SUCCESS';
 
-    if (!isSuccess) {
+    console.log('✅ PhonePe verification result:', verificationResult);
+
+    // Update transaction status based on verification
+    // Check multiple success indicators
+    const isSuccess = verificationResult.status === 'COMPLETED' || 
+                     state === 'COMPLETED' || 
+                     code === 'PAYMENT_SUCCESS' ||
+                     body.state === 'COMPLETED';
+    
+    if (isSuccess) {
+      // Update transaction as completed
       await db.update(wallet_transactions)
-        .set({ status: 'failed' })
+        .set({
+          status: 'completed',
+          updated_at: new Date(),
+        })
         .where(eq(wallet_transactions.id, transaction.id));
 
-      return NextResponse.json({ error: 'Payment not completed', status: verify.status }, { status: 400 });
-    }
+      // Update user's wallet balance
+      const [user] = await db.select()
+        .from(users)
+        .where(eq(users.id, transaction.user_id));
 
-    // Mark transaction completed and update reference to provider transaction id
-    await db.update(wallet_transactions)
-      .set({ status: 'completed', reference_id: verify.transactionId })
-      .where(eq(wallet_transactions.id, transaction.id));
+      if (user) {
+        const currentBalance = parseFloat(user.inr_balance || '0');
+        const depositAmount = parseFloat(transaction.amount);
+        const newBalance = currentBalance + depositAmount;
 
-    // Credit user's INR wallet with the net amount stored in transaction.amount
-    const [profile] = await db.select()
-      .from(profiles)
-      .where(eq(profiles.user_id, transaction.user_id));
-
-    if (profile) {
-      const currentBalance = parseFloat(profile.wallet_balance_inr || '0');
-      const newBalance = (currentBalance + parseFloat(transaction.amount)).toFixed(2);
-
-      await db.update(profiles)
-        .set({ wallet_balance_inr: newBalance })
-        .where(eq(profiles.id, profile.id));
-    }
-
-    // Credit admin wallet with commission if any
-    const commissionAmount = parseFloat(transaction.commission_amount || '0');
-    if (commissionAmount > 0) {
-      const [adminWallet] = await db
-        .select()
-        .from(admin_wallets)
-        .where(eq(admin_wallets.currency, 'INR'));
-
-      if (adminWallet) {
-        const newAdminBalance = (parseFloat(adminWallet.balance) + commissionAmount).toFixed(2);
-        const newEarned = (parseFloat(adminWallet.total_commission_earned) + commissionAmount).toFixed(2);
-
-        await db.update(admin_wallets)
+        await db.update(users)
           .set({
-            balance: newAdminBalance,
-            total_commission_earned: newEarned,
+            inr_balance: newBalance.toFixed(2),
             updated_at: new Date(),
           })
-          .where(eq(admin_wallets.id, adminWallet.id));
+          .where(eq(users.id, transaction.user_id));
+
+        console.log(`✅ Wallet updated: +₹${depositAmount} (New balance: ₹${newBalance})`);
       }
+    } else {
+      // Update transaction as failed
+      await db.update(wallet_transactions)
+        .set({
+          status: 'failed',
+          updated_at: new Date(),
+        })
+        .where(eq(wallet_transactions.id, transaction.id));
+
+      console.log('❌ Payment failed or pending');
     }
 
-    return NextResponse.json({ success: true, message: 'Payment completed successfully' });
+    return NextResponse.json({
+      success: true,
+      status: isSuccess ? 'completed' : 'failed',
+      transactionId: txId,
+    });
+
   } catch (error: any) {
     console.error('PhonePe callback error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to process callback' },
       { status: 500 }
     );
+  }
+}
+
+// GET /api/wallet/phonepe-callback (for redirect handling)
+export async function GET(request: NextRequest) {
+  try {
+    const url = new URL(request.url);
+    const transactionId = url.searchParams.get('transactionId');
+    const status = url.searchParams.get('status');
+
+    console.log('📞 PhonePe Redirect received:', { transactionId, status });
+
+    if (!transactionId) {
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/wallet?error=no_transaction_id`);
+    }
+
+    // Find the transaction
+    const [transaction] = await db.select()
+      .from(wallet_transactions)
+      .where(eq(wallet_transactions.reference_id, transactionId));
+
+    if (!transaction) {
+      return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/wallet?error=transaction_not_found`);
+    }
+
+    // Redirect to success page
+    const redirectUrl = status === 'success' 
+      ? `${process.env.NEXT_PUBLIC_APP_URL}/wallet/payment-success?transactionId=${transactionId}`
+      : `${process.env.NEXT_PUBLIC_APP_URL}/wallet?error=payment_failed`;
+
+    return NextResponse.redirect(redirectUrl);
+
+  } catch (error: any) {
+    console.error('PhonePe redirect error:', error);
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/wallet?error=callback_error`);
   }
 }

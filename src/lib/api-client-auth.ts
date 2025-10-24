@@ -78,6 +78,14 @@ export async function makeAuthenticatedRequest(
     }
   }
 
+  // Store token in cookie as AWS Amplify may strip custom headers
+  try {
+    document.cookie = `firebase_token=${idToken}; path=/; max-age=3600; SameSite=Lax`;
+    console.log('🍪 Token stored in cookie');
+  } catch (error) {
+    console.error('⚠️ Failed to set cookie:', error);
+  }
+
   // Merge headers - ensure they override any existing headers
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');

@@ -37,8 +37,10 @@ function MockPaymentContent() {
 
   const triggerCallback = async () => {
     try {
+      console.log('🔄 Triggering mock PhonePe callback...', { transactionId, amount });
+      
       // Simulate PhonePe callback
-      await fetch('/api/wallet/phonepe-callback', {
+      const response = await fetch('/api/wallet/phonepe-callback', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -54,17 +56,31 @@ function MockPaymentContent() {
           responseCode: 'SUCCESS'
         }),
       });
+
+      const data = await response.json();
+      console.log('📦 Callback response:', { status: response.status, data });
+
+      if (!response.ok) {
+        console.error('❌ Callback failed:', data);
+        setPaymentStatus('failed');
+      } else {
+        console.log('✅ Callback successful');
+      }
     } catch (error) {
-      console.error('Mock callback failed:', error);
+      console.error('❌ Mock callback failed:', error);
       setPaymentStatus('failed');
     }
   };
 
   const handleSuccess = () => {
     if (redirectUrl) {
-      window.location.href = decodeURIComponent(redirectUrl);
+      // Add transaction ID and success flag to the redirect URL
+      const url = new URL(decodeURIComponent(redirectUrl));
+      url.searchParams.set('transactionId', transactionId || '');
+      url.searchParams.set('payment_success', 'true');
+      window.location.href = url.toString();
     } else {
-      router.push('/wallet/payment-success');
+      router.push(`/wallet/payment-success?transactionId=${transactionId}`);
     }
   };
 

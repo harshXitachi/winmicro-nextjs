@@ -1,29 +1,52 @@
-// Razorpay Gateway Configuration - Enhanced with fallbacks
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEYID || '';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEYSECRET || '';
+// Razorpay Gateway Configuration - Enhanced with comprehensive fallbacks
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEYID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEYSECRET || process.env.NEXT_PUBLIC_RAZORPAY_KEY_SECRET || '';
 const RAZORPAY_MODE = process.env.RAZORPAY_MODE === 'test' ? 'test' : 'live';
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
 
-// Enhanced debug environment variables
-console.log('🔍 Razorpay Environment Check:', {
-  hasKeyId: !!RAZORPAY_KEY_ID,
-  hasKeySecret: !!RAZORPAY_KEY_SECRET,
-  mode: RAZORPAY_MODE,
-  nodeEnv: process.env.NODE_ENV,
-  keyIdPreview: RAZORPAY_KEY_ID ? RAZORPAY_KEY_ID.substring(0, 10) + '...' : 'NOT SET',
-  keySecretPreview: RAZORPAY_KEY_SECRET ? RAZORPAY_KEY_SECRET.substring(0, 10) + '...' : 'NOT SET',
-  allEnvKeys: Object.keys(process.env).filter(key => key.includes('RAZORPAY')),
-  timestamp: new Date().toISOString()
-});
+// Comprehensive environment variable validation
+const validateRazorpayConfig = () => {
+  const config = {
+    hasKeyId: !!RAZORPAY_KEY_ID,
+    hasKeySecret: !!RAZORPAY_KEY_SECRET,
+    mode: RAZORPAY_MODE,
+    nodeEnv: process.env.NODE_ENV,
+    keyIdPreview: RAZORPAY_KEY_ID ? RAZORPAY_KEY_ID.substring(0, 10) + '...' : 'NOT SET',
+    keySecretPreview: RAZORPAY_KEY_SECRET ? RAZORPAY_KEY_SECRET.substring(0, 10) + '...' : 'NOT SET',
+    allEnvKeys: Object.keys(process.env).filter(key => key.includes('RAZORPAY')),
+    timestamp: new Date().toISOString(),
+    // Additional environment sources
+    fromNextConfig: {
+      RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID ? 'SET' : 'MISSING',
+      RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET ? 'SET' : 'MISSING',
+    },
+    // Check for common alternative names
+    alternativeNames: {
+      RAZORPAY_KEYID: process.env.RAZORPAY_KEYID ? 'SET' : 'MISSING',
+      RAZORPAY_KEYSECRET: process.env.RAZORPAY_KEYSECRET ? 'SET' : 'MISSING',
+    }
+  };
 
-// Check if we're in production and credentials are missing
-if (process.env.NODE_ENV === 'production' && (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET)) {
-  console.error('❌ PRODUCTION: Razorpay credentials missing!');
-  console.error('Environment variables found:', {
-    RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID ? 'SET' : 'MISSING',
-    RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET ? 'SET' : 'MISSING',
-    RAZORPAY_MODE: process.env.RAZORPAY_MODE || 'NOT SET'
-  });
+  console.log('🔍 Razorpay Environment Check:', config);
+  return config;
+};
+
+// Run validation
+const envCheck = validateRazorpayConfig();
+
+// Enhanced error handling for missing credentials
+if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+  console.error('❌ Razorpay credentials missing!');
+  console.error('Please ensure these environment variables are set in AWS Amplify Console:');
+  console.error('1. RAZORPAY_KEY_ID=your_razorpay_key_id');
+  console.error('2. RAZORPAY_KEY_SECRET=your_razorpay_key_secret');
+  console.error('3. RAZORPAY_MODE=live (or test for testing)');
+  console.error('\nCurrent environment status:', envCheck);
+  
+  // In production, this will cause the app to fail gracefully
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ PRODUCTION: Razorpay credentials are required!');
+  }
 }
 
 interface RazorpayOrderResponse {
@@ -73,11 +96,24 @@ export async function createRazorpayOrder(
     
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
       console.error('❌ Razorpay credentials missing!');
-      console.error('Please add these environment variables to AWS Amplify:');
-      console.error('RAZORPAY_KEY_ID=your_key_id');
-      console.error('RAZORPAY_KEY_SECRET=your_key_secret');
-      console.error('RAZORPAY_MODE=live');
-      throw new Error('Razorpay credentials not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables in AWS Amplify Console.');
+      console.error('Please add these environment variables to AWS Amplify Console:');
+      console.error('1. RAZORPAY_KEY_ID=your_key_id');
+      console.error('2. RAZORPAY_KEY_SECRET=your_key_secret');
+      console.error('3. RAZORPAY_MODE=live (or test for testing)');
+      console.error('\nCurrent environment:', {
+        nodeEnv: process.env.NODE_ENV,
+        hasKeyId: !!process.env.RAZORPAY_KEY_ID,
+        hasKeySecret: !!process.env.RAZORPAY_KEY_SECRET,
+        allRazorpayEnvVars: Object.keys(process.env).filter(key => key.includes('RAZORPAY')),
+        timestamp: new Date().toISOString()
+      });
+      
+      // Provide more specific error message based on environment
+      const errorMessage = process.env.NODE_ENV === 'production' 
+        ? 'Razorpay credentials not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables in AWS Amplify Console, then redeploy your application.'
+        : 'Razorpay credentials not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables in your .env.local file or AWS Amplify Console.';
+      
+      throw new Error(errorMessage);
     }
 
     const orderData = {
