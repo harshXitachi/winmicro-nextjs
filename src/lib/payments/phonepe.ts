@@ -117,12 +117,18 @@ export async function createPhonePePayment(
     const base64Payload = Buffer.from(payloadString).toString('base64');
     const xVerify = generateXVerify(base64Payload);
 
+    console.log('📤 PhonePe API Request:', {
+      url: `${PHONEPE_BASE_URL}/pg/v1/pay`,
+      payloadPreview: JSON.stringify(payload).substring(0, 200),
+      base64Length: base64Payload.length,
+      xVerifyPreview: xVerify.substring(0, 20) + '...',
+    });
+
     const response = await fetch(`${PHONEPE_BASE_URL}/pg/v1/pay`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-'X-VERIFY': xVerify,
-        'X-MERCHANT-ID': PHONEPE_MERCHANT_ID,
+        'X-VERIFY': xVerify,
       },
       body: JSON.stringify({
         request: base64Payload,
@@ -199,7 +205,6 @@ export async function verifyPhonePePayment(
         headers: {
           'Content-Type': 'application/json',
           'X-VERIFY': xVerify,
-          'X-MERCHANT-ID': PHONEPE_MERCHANT_ID,
         },
       }
     );
