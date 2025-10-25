@@ -3,6 +3,7 @@
 import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
 
 // Re-export Firebase auth hook as useAuth for backward compatibility
+// Exported for module resolution
 export const useAuth = () => {
   const firebaseAuth = useFirebaseAuth();
   

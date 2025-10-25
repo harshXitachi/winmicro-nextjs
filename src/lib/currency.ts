@@ -1,6 +1,7 @@
 /**
  * Currency Helper Utilities
  * Provides type-safe currency operations and formatting
+ * Exported for module resolution
  */
 
 export type Currency = 'INR' | 'USD' | 'USDT';
