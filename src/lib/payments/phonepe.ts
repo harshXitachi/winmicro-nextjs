@@ -138,10 +138,29 @@ export async function createPhonePePayment(
       throw new Error(`Failed to parse PhonePay response: ${text}`);
     }
 
-    console.log('PhonePay response:', data);
+    console.log('PhonePe API Response:', {
+      status: response.status,
+      ok: response.ok,
+      success: data.success,
+      code: data.code,
+      message: data.message,
+    });
 
     if (!response.ok || !data.success) {
-      throw new Error(`PhonePay error: ${data.message || data.error || 'Unknown error'}`);
+      const errorMsg = data.message || data.error || 'Unknown error';
+      console.error('❌ PhonePe API Error:', {
+        status: response.status,
+        code: data.code,
+        message: errorMsg,
+        fullResponse: data,
+      });
+      
+      // Provide helpful error messages
+      if (errorMsg.includes('Key not found')) {
+        throw new Error(`PhonePe error: Invalid credentials. Please verify PHONEPE_SECRET_KEY and PHONEPE_KEY_INDEX match your merchant account settings.`);
+      }
+      
+      throw new Error(`PhonePe error: ${errorMsg}`);
     }
 
     const redirectUrl2 = data.data?.instrumentResponse?.redirectInfo?.url;
