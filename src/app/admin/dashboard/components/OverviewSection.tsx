@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency } from '../../../../lib/currency';
 
 interface OverviewSectionProps {
   adminData?: any;

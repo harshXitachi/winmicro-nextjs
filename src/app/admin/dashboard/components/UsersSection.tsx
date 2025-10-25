@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { formatCurrency, type Currency } from '@/lib/currency';
+import { formatCurrency, type Currency } from '../../../../lib/currency';
 
 interface User {
   id: string;

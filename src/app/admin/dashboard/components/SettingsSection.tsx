@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { getAdminSettings, updateAdminSettings } from '@/lib/supabase';
+import { getAdminSettings, updateAdminSettings } from '../../../../lib/supabase';
 
 export default function SettingsSection() {
   const [adminPassword, setAdminPassword] = useState('');

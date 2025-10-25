@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { formatCurrency, type Currency } from '@/lib/currency';
+import { supabase } from '../../../../lib/supabase';
+import { formatCurrency, type Currency } from '../../../../lib/currency';
 
 interface AdminSettings {
   id: string;

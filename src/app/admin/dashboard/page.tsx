@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { gsap } from 'gsap';
-import { useAuth } from '@/hooks/useAuth';
-import { getTasks, getTaskApplications, getWalletTransactions, signOut, getAllUsers, getAllTransactions } from '@/lib/supabase';
+import { useAuth } from '../../../hooks/useAuth';
+import { getTasks, getTaskApplications, getWalletTransactions, signOut, getAllUsers, getAllTransactions } from '../../../lib/supabase';
 import AdminSidebar from './components/AdminSidebar';
 import UsersSection from './components/UsersSection';
 import WalletSection from './components/WalletSection';
