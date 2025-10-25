@@ -7,6 +7,18 @@ const PHONEPE_MERCHANT_ID = process.env.PHONEPE_MERCHANT_ID || '';
 const PHONEPE_SECRET_KEY = process.env.PHONEPE_SECRET_KEY || '';
 const PHONEPE_KEY_INDEX = process.env.PHONEPE_KEY_INDEX ? parseInt(process.env.PHONEPE_KEY_INDEX) : 1;
 
+// Log configuration status (without exposing secrets)
+console.log('PhonePe Configuration Status:', {
+  baseUrl: PHONEPE_BASE_URL,
+  merchantIdConfigured: !!PHONEPE_MERCHANT_ID,
+  merchantIdLength: PHONEPE_MERCHANT_ID?.length || 0,
+  merchantIdPreview: PHONEPE_MERCHANT_ID ? `${PHONEPE_MERCHANT_ID.substring(0, 5)}...` : 'NOT SET',
+  secretKeyConfigured: !!PHONEPE_SECRET_KEY,
+  secretKeyLength: PHONEPE_SECRET_KEY?.length || 0,
+  keyIndex: PHONEPE_KEY_INDEX,
+  nodeEnv: process.env.NODE_ENV,
+});
+
 interface PhonePePaymentPayload {
   merchantId: string;
   merchantTransactionId: string;
@@ -69,8 +81,21 @@ export async function createPhonePePayment(
   callbackUrl: string
 ): Promise<{ url: string; transactionId: string }> {
   try {
+    console.log('🔧 Creating PhonePe payment:', {
+      userId: userId.substring(0, 8),
+      transactionId,
+      amount,
+      merchantIdPresent: !!PHONEPE_MERCHANT_ID,
+      secretKeyPresent: !!PHONEPE_SECRET_KEY,
+    });
+    
     if (!PHONEPE_MERCHANT_ID || !PHONEPE_SECRET_KEY) {
-      throw new Error('PhonePe credentials not configured. Please set PHONEPE_MERCHANT_ID and PHONEPE_SECRET_KEY.');
+      console.error('❌ PhonePe credentials missing:', {
+        PHONEPE_MERCHANT_ID: PHONEPE_MERCHANT_ID || 'NOT SET',
+        PHONEPE_SECRET_KEY_LENGTH: PHONEPE_SECRET_KEY?.length || 0,
+        allEnvKeys: Object.keys(process.env).filter(k => k.includes('PHONEPE')),
+      });
+      throw new Error('PhonePe credentials not configured. Please set PHONEPE_MERCHANT_ID and PHONEPE_SECRET_KEY in AWS Amplify environment variables.');
     }
 
     const amountInPaise = Math.round(amount * 100);
