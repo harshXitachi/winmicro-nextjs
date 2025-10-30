@@ -371,7 +371,17 @@ export default function WalletSection() {
                   </svg>
                 </div>
                 <h2 style="font-size: 1.75rem; font-weight: bold; margin-bottom: 0.5rem; color: #1f2937;">Send USDT (TRC20)</h2>
-                <p style="margin-bottom: 1.5rem; color: #6b7280; font-size: 0.95rem;">Send exactly <strong style="color: #8b5cf6; font-size: 1.1rem;">${data.totalAmount} USDT</strong> to:</p>
+                <p style="margin-bottom: 1rem; color: #6b7280; font-size: 0.95rem;">Send exactly <strong style="color: #8b5cf6; font-size: 1.1rem;">${data.transaction.amount} USDT</strong> to:</p>
+                <div style="background: #eff6ff; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border: 1px solid #bfdbfe;">
+                  <p style="font-size: 0.8rem; color: #1e40af; margin: 0; line-height: 1.6;">
+                    <strong>💰 Amount Breakdown:</strong><br/>
+                    Deposit Amount: <strong>${data.depositAmount} USDT</strong><br/>
+                    Platform Fee (${data.commissionRate}%): <strong>${data.commissionAmount} USDT</strong><br/>
+                    CoinPayments Network Fee: <strong>${(parseFloat(data.transaction.amount) - parseFloat(data.totalAmount)).toFixed(2)} USDT</strong><br/>
+                    <span style="color: #8b5cf6; font-size: 0.9rem; margin-top: 0.5rem; display: inline-block;">━━━━━━━━━━━━━━━━</span><br/>
+                    <strong style="color: #8b5cf6; font-size: 0.9rem;">Total to Send: ${data.transaction.amount} USDT</strong>
+                  </p>
+                </div>
                 <div style="background: linear-gradient(to right, #f9fafb, #f3f4f6); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1.5rem; border: 2px solid #e5e7eb;">
                   <code style="font-size: 0.875rem; color: #1f2937; word-break: break-all; font-weight: 500;">${data.transaction.address}</code>
                 </div>

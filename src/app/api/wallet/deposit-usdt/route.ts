@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
         },
         depositAmount: depositAmount.toFixed(2),
         commissionAmount: commissionAmount.toFixed(2),
+        commissionRate: settings?.commission_percentage || '0',
         totalAmount: totalAmount.toFixed(2),
         currency: 'USDT',
       });
