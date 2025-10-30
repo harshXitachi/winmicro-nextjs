@@ -110,7 +110,7 @@ export default function WalletPage() {
 
     setIsProcessing(true);
     try {
-      console.log('🔄 Initiating INR deposit...');
+      console.log('[INR] Initiating INR deposit...');
       
       const res = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/deposit-inr', {
         method: 'POST',
@@ -120,10 +120,10 @@ export default function WalletPage() {
       });
 
       const data = await res.json();
-      console.log('📦 Response:', { status: res.status, data });
+      console.log('[INR] Response:', { status: res.status, data });
 
       if (!res.ok) {
-        console.error('❌ Deposit failed:', data.error);
+        console.error('[INR] Deposit failed:', data.error);
         alert(data.error || 'Failed to initiate deposit');
         return;
       }
@@ -138,7 +138,7 @@ export default function WalletPage() {
           description: `Wallet Deposit - ₹${depositAmount}`,
           order_id: data.orderId,
           handler: async function (response: any) {
-            console.log('✅ Razorpay payment successful:', response);
+            console.log('[Razorpay] Payment successful:', response);
             
             // Call our callback to verify and process payment
             try {
@@ -189,85 +189,29 @@ export default function WalletPage() {
 
   const handleDepositUSDT = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!depositAmount) {
-      alert('Please enter deposit amount');
+    if (!depositAmount || !firebaseUser) {
+      alert('Please enter amount and log in');
       return;
     }
-
-    if (!firebaseUser) {
-      alert('Please log in to continue');
-      return;
-    }
-
     setIsProcessing(true);
     try {
       const res = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/deposit-usdt', {
         method: 'POST',
-        body: JSON.stringify({
-          amount: parseFloat(depositAmount),
-        }),
+        body: JSON.stringify({ amount: parseFloat(depositAmount) }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         alert(data.error || 'Failed to initiate deposit');
         return;
       }
-
-      // Show payment modal with crypto address and QR code
-        if (data.transaction) {
-          const coinpaymentsFees = (parseFloat(data.transaction.amount) - parseFloat(data.totalAmount)).toFixed(2);
-          const modal = document.createElement('div');
-          modal.innerHTML = `
-            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem;">
-              <div style="background: white; padding: 2rem; border-radius: 1.5rem; max-width: 500px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
-                <div style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);">
-                  <svg style="width: 32px; height: 32px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                </div>
-                <h2 style="font-size: 1.75rem; font-weight: bold; margin-bottom: 0.5rem; color: #1f2937;">Send USDT (TRC20)</h2>
-                <p style="margin-bottom: 1rem; color: #6b7280; font-size: 0.95rem;">Send exactly <strong style="color: #8b5cf6; font-size: 1.1rem;">${data.transaction.amount} USDT</strong> to:</p>
-                <div style="background: #eff6ff; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border: 1px solid #bfdbfe;">
-                  <p style="font-size: 0.8rem; color: #1e40af; margin: 0; line-height: 1.6;">
-                    <strong>💰 Amount Breakdown:</strong><br/>
-                    Deposit Amount: <strong>${data.depositAmount} USDT</strong><br/>
-                    Platform Fee (${data.commissionRate}%): <strong>${data.commissionAmount} USDT</strong><br/>
-                    CoinPayments Network Fee: <strong>${coinpaymentsFees} USDT</strong><br/>
-                    <span style="color: #8b5cf6; font-size: 0.9rem; margin-top: 0.5rem; display: inline-block;">━━━━━━━━━━━━━━━━</span><br/>
-                    <strong style="color: #8b5cf6; font-size: 0.9rem;">Total to Send: ${data.transaction.amount} USDT</strong>
-                  </p>
-                </div>
-                <div style="background: linear-gradient(to right, #f9fafb, #f3f4f6); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1.5rem; border: 2px solid #e5e7eb;">
-                  <code style="font-size: 0.875rem; color: #1f2937; word-break: break-all; font-weight: 500;">${data.transaction.address}</code>
-                </div>
-                <div style="background: white; padding: 1rem; border-radius: 0.75rem; border: 3px solid #8b5cf6; margin-bottom: 1.5rem; display: inline-block;">
-                  <img src="${data.transaction.qrcode_url}" alt="QR Code" style="width: 220px; height: 220px; display: block;" />
-                </div>
-                <div style="background: #fef3c7; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid #fbbf24;">
-                  <p style="font-size: 0.9rem; color: #92400e; margin: 0; font-weight: 600;">
-                    ⏱️ Expires in ${Math.floor(data.transaction.timeout / 60)} minutes
-                  </p>
-                </div>
-                <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.5rem;">
-                  Your balance will be credited after <strong>${data.transaction.confirms_needed} network confirmations</strong>
-                </p>
-                <a href="${data.transaction.status_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #3b82f6; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; margin-bottom: 1rem; transition: background 0.2s; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                  🔍 Check Status on CoinPayments
-                </a>
-                <button onclick="this.closest('div').parentElement.remove()" style="display: block; width: 100%; background: #8b5cf6; color: white; padding: 0.875rem; border-radius: 0.75rem; border: none; cursor: pointer; font-weight: 600; font-size: 1rem; transition: background 0.2s; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3);" onmouseover="this.style.background='#7c3aed'" onmouseout="this.style.background='#8b5cf6'">
-                  Close
-                </button>
-              </div>
-            </div>
-          `;
-          document.body.appendChild(modal);
-        }
+      if (data.transaction) {
+        const fees = (parseFloat(data.transaction.amount) - parseFloat(data.totalAmount)).toFixed(2);
+        const div = document.createElement('div');
+        div.innerHTML = '<div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem"><div style="background:white;padding:2rem;border-radius:1.5rem;max-width:500px;width:100%;text-align:center"><h2 style="font-size:1.75rem;font-weight:bold;margin-bottom:1rem;color:#1f2937">Send USDT (TRC20)</h2><p style="margin-bottom:1rem;color:#6b7280">Send exactly <strong style="color:#8b5cf6">' + data.transaction.amount + ' USDT</strong></p><div style="background:#eff6ff;padding:0.75rem;border-radius:0.5rem;margin-bottom:1.5rem;border:1px solid #bfdbfe"><p style="font-size:0.8rem;color:#1e40af;margin:0"><strong>Breakdown:</strong><br/>Amount: ' + data.depositAmount + ' USDT<br/>Platform Fee: ' + data.commissionAmount + ' USDT<br/>Network Fee: ' + fees + ' USDT<br/><strong>Total: ' + data.transaction.amount + ' USDT</strong></p></div><div style="background:#f9fafb;padding:1rem;border-radius:0.75rem;margin-bottom:1.5rem"><code style="font-size:0.875rem;color:#1f2937;word-break:break-all">' + data.transaction.address + '</code></div><img src="' + data.transaction.qrcode_url + '" style="width:220px;height:220px;margin:0 auto 1.5rem;border:3px solid #8b5cf6;border-radius:0.75rem"/><div style="background:#fef3c7;padding:1rem;border-radius:0.75rem;margin-bottom:1rem"><p style="font-size:0.9rem;color:#92400e;margin:0">Expires in ' + Math.floor(data.transaction.timeout / 60) + ' minutes</p></div><a href="' + data.transaction.status_url + '" target="_blank" style="display:inline-block;background:#3b82f6;color:white;padding:0.75rem 1.5rem;border-radius:0.5rem;text-decoration:none;font-weight:600;margin-bottom:1rem">Check Status</a><button onclick="this.closest(\'div\').parentElement.remove()" style="display:block;width:100%;background:#8b5cf6;color:white;padding:0.875rem;border-radius:0.75rem;border:none;cursor:pointer;font-weight:600">Close</button></div></div>';
+        document.body.appendChild(div);
+      }
     } catch (error: any) {
-      console.error('USDT Deposit error:', error);
-      alert('Failed to initiate deposit: ' + error.message);
+      alert('Failed: ' + error.message);
     } finally {
       setIsProcessing(false);
     }
@@ -275,73 +219,29 @@ export default function WalletPage() {
 
   const handleDepositUSD = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log('=== START handleDepositUSD ===');
-    console.log('1. Deposit amount:', depositAmount);
-    
-    if (!depositAmount) {
-      console.error('❌ No deposit amount entered');
-      alert('Please enter amount');
+    if (!depositAmount || !firebaseUser) {
+      alert('Please enter amount and log in');
       return;
     }
-    
-    console.log('2. Checking firebaseUser...');
-    console.log('   firebaseUser exists:', !!firebaseUser);
-    
-    if (!firebaseUser) {
-      console.error('❌ No firebaseUser - not logged in!');
-      alert('Please log in to continue');
-      return;
-    }
-    
-    console.log('3. Firebase user details:', {
-      uid: firebaseUser.uid,
-      email: firebaseUser.email,
-      emailVerified: firebaseUser.emailVerified,
-    });
-
     setIsProcessing(true);
-    
     try {
-      console.log('4. Calling makeAuthenticatedRequest...');
-      
       const res = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/deposit-usd', {
         method: 'POST',
-        body: JSON.stringify({
-          amount: parseFloat(depositAmount),
-        }),
+        body: JSON.stringify({ amount: parseFloat(depositAmount) }),
       });
-      
-      console.log('5. Got response, status:', res.status);
-
       const data = await res.json();
-      console.log('6. Response data:', data);
-
       if (!res.ok) {
-        console.error('❌ Deposit failed with status:', res.status);
-        console.error('   Error:', data.error);
         alert(data.error || 'Failed to initiate deposit');
         return;
       }
-
-      console.log('7. Success! Redirecting to PayPal...');
-      // Redirect to PayPal approval URL
       if (data.approvalUrl) {
-        console.log('   Approval URL:', data.approvalUrl);
         window.location.href = data.approvalUrl;
       } else {
-        console.error('❌ No approval URL in response');
         alert('No payment URL received');
       }
     } catch (error: any) {
-      console.error('=== DEPOSIT ERROR ===');
-      console.error('Error type:', error.constructor.name);
-      console.error('Error message:', error.message);
-      console.error('Full error:', error);
-      console.error('Stack trace:', error.stack);
       alert('Failed to initiate deposit: ' + error.message);
     } finally {
-      console.log('=== END handleDepositUSD ===');
       setIsProcessing(false);
     }
   };

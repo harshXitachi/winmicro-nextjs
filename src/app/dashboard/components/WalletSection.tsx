@@ -374,11 +374,11 @@ export default function WalletSection() {
                 <p style="margin-bottom: 1rem; color: #6b7280; font-size: 0.95rem;">Send exactly <strong style="color: #8b5cf6; font-size: 1.1rem;">${data.transaction.amount} USDT</strong> to:</p>
                 <div style="background: #eff6ff; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1.5rem; border: 1px solid #bfdbfe;">
                   <p style="font-size: 0.8rem; color: #1e40af; margin: 0; line-height: 1.6;">
-                    <strong>💰 Amount Breakdown:</strong><br/>
+                    <strong>Amount Breakdown:</strong><br/>
                     Deposit Amount: <strong>${data.depositAmount} USDT</strong><br/>
                     Platform Fee (${data.commissionRate}%): <strong>${data.commissionAmount} USDT</strong><br/>
                     CoinPayments Network Fee: <strong>${(parseFloat(data.transaction.amount) - parseFloat(data.totalAmount)).toFixed(2)} USDT</strong><br/>
-                    <span style="color: #8b5cf6; font-size: 0.9rem; margin-top: 0.5rem; display: inline-block;">━━━━━━━━━━━━━━━━</span><br/>
+                    <span style="color: #8b5cf6; font-size: 0.9rem; margin-top: 0.5rem; display: inline-block;">___________________</span><br/>
                     <strong style="color: #8b5cf6; font-size: 0.9rem;">Total to Send: ${data.transaction.amount} USDT</strong>
                   </p>
                 </div>
@@ -390,14 +390,14 @@ export default function WalletSection() {
                 </div>
                 <div style="background: #fef3c7; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid #fbbf24;">
                   <p style="font-size: 0.9rem; color: #92400e; margin: 0; font-weight: 600;">
-                    ⏱️ Expires in ${Math.floor(data.transaction.timeout / 60)} minutes
+                    Expires in ${Math.floor(data.transaction.timeout / 60)} minutes
                   </p>
                 </div>
                 <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.5rem;">
                   Your balance will be credited after <strong>${data.transaction.confirms_needed} network confirmations</strong>
                 </p>
                 <a href="${data.transaction.status_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #3b82f6; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; margin-bottom: 1rem; transition: background 0.2s; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
-                  🔍 Check Status on CoinPayments
+                  Check Status on CoinPayments
                 </a>
                 <button onclick="document.getElementById('crypto-payment-modal').remove()" style="display: block; width: 100%; background: #8b5cf6; color: white; padding: 0.875rem; border-radius: 0.75rem; border: none; cursor: pointer; font-weight: 600; font-size: 1rem; transition: background 0.2s; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3);" onmouseover="this.style.background='#7c3aed'" onmouseout="this.style.background='#8b5cf6'">
                   Close
