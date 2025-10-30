@@ -331,8 +331,77 @@ export default function WalletSection() {
         } else {
           alert('Failed to initialize PayPal payment. Please try again.');
         }
+      } else if (currency === 'USDT') {
+        // For USDT, use CoinPayments
+        if (!firebaseUser) {
+          alert('Please log in to continue');
+          setProcessing(false);
+          return;
+        }
+        
+        const response = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/deposit-usdt', {
+          method: 'POST',
+          body: JSON.stringify({
+            amount: depositAmount,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error('USDT deposit initiation failed:', data);
+          alert(data.error || 'Failed to initiate deposit. Please try again.');
+          return;
+        }
+
+        // Show crypto payment modal with address and QR code
+        if (data.transaction) {
+          // Close deposit modal
+          setShowDepositModal(false);
+          
+          // Create and show crypto payment modal
+          const modal = document.createElement('div');
+          modal.id = 'crypto-payment-modal';
+          modal.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem;">
+              <div style="background: white; padding: 2rem; border-radius: 1.5rem; max-width: 500px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+                <div style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);">
+                  <svg style="width: 32px; height: 32px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+                <h2 style="font-size: 1.75rem; font-weight: bold; margin-bottom: 0.5rem; color: #1f2937;">Send USDT (TRC20)</h2>
+                <p style="margin-bottom: 1.5rem; color: #6b7280; font-size: 0.95rem;">Send exactly <strong style="color: #8b5cf6; font-size: 1.1rem;">${data.totalAmount} USDT</strong> to:</p>
+                <div style="background: linear-gradient(to right, #f9fafb, #f3f4f6); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1.5rem; border: 2px solid #e5e7eb;">
+                  <code style="font-size: 0.875rem; color: #1f2937; word-break: break-all; font-weight: 500;">${data.transaction.address}</code>
+                </div>
+                <div style="background: white; padding: 1rem; border-radius: 0.75rem; border: 3px solid #8b5cf6; margin-bottom: 1.5rem; display: inline-block;">
+                  <img src="${data.transaction.qrcode_url}" alt="QR Code" style="width: 220px; height: 220px; display: block;" />
+                </div>
+                <div style="background: #fef3c7; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid #fbbf24;">
+                  <p style="font-size: 0.9rem; color: #92400e; margin: 0; font-weight: 600;">
+                    ⏱️ Expires in ${Math.floor(data.transaction.timeout / 60)} minutes
+                  </p>
+                </div>
+                <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.5rem;">
+                  Your balance will be credited after <strong>${data.transaction.confirms_needed} network confirmations</strong>
+                </p>
+                <a href="${data.transaction.status_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #3b82f6; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; margin-bottom: 1rem; transition: background 0.2s; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                  🔍 Check Status on CoinPayments
+                </a>
+                <button onclick="document.getElementById('crypto-payment-modal').remove()" style="display: block; width: 100%; background: #8b5cf6; color: white; padding: 0.875rem; border-radius: 0.75rem; border: none; cursor: pointer; font-weight: 600; font-size: 1rem; transition: background 0.2s; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3);" onmouseover="this.style.background='#7c3aed'" onmouseout="this.style.background='#8b5cf6'">
+                  Close
+                </button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(modal);
+          
+          // Reset form
+          setAmount('');
+        }
       } else {
-        alert('USDT deposits not yet supported. Please use INR or USD.');
+        alert('Invalid currency selected. Please try again.');
       }
     } catch (error) {
       console.error('Error processing deposit:', error);

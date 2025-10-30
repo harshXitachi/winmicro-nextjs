@@ -49,7 +49,10 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [commissionSettings, setCommissionSettings] = useState<CommissionSettings | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'deposit' | 'withdraw' | 'history'>('overview');
-  const [depositCurrency, setDepositCurrency] = useState<'INR' | 'USD'>('INR');
+  const [depositCurrency, setDepositCurrency] = useState<'INR' | 'USD' | 'USDT'>('INR');
+  const [withdrawCurrency, setWithdrawCurrency] = useState<'INR' | 'USD' | 'USDT'>('INR');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [trc20Address, setTrc20Address] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -179,6 +182,81 @@ export default function WalletPage() {
     } catch (error) {
       console.error('Deposit error:', error);
       alert('Failed to initiate deposit');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDepositUSDT = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!depositAmount) {
+      alert('Please enter deposit amount');
+      return;
+    }
+
+    if (!firebaseUser) {
+      alert('Please log in to continue');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const res = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/deposit-usdt', {
+        method: 'POST',
+        body: JSON.stringify({
+          amount: parseFloat(depositAmount),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Failed to initiate deposit');
+        return;
+      }
+
+        // Show payment modal with crypto address and QR code
+        if (data.transaction) {
+          const modal = document.createElement('div');
+          modal.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem;">
+              <div style="background: white; padding: 2rem; border-radius: 1.5rem; max-width: 500px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+                <div style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);">
+                  <svg style="width: 32px; height: 32px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+                <h2 style="font-size: 1.75rem; font-weight: bold; margin-bottom: 0.5rem; color: #1f2937;">Send USDT (TRC20)</h2>
+                <p style="margin-bottom: 1.5rem; color: #6b7280; font-size: 0.95rem;">Send exactly <strong style="color: #8b5cf6; font-size: 1.1rem;">${data.totalAmount} USDT</strong> to:</p>
+                <div style="background: linear-gradient(to right, #f9fafb, #f3f4f6); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1.5rem; border: 2px solid #e5e7eb;">
+                  <code style="font-size: 0.875rem; color: #1f2937; word-break: break-all; font-weight: 500;">${data.transaction.address}</code>
+                </div>
+                <div style="background: white; padding: 1rem; border-radius: 0.75rem; border: 3px solid #8b5cf6; margin-bottom: 1.5rem; display: inline-block;">
+                  <img src="${data.transaction.qrcode_url}" alt="QR Code" style="width: 220px; height: 220px; display: block;" />
+                </div>
+                <div style="background: #fef3c7; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid #fbbf24;">
+                  <p style="font-size: 0.9rem; color: #92400e; margin: 0; font-weight: 600;">
+                    ⏱️ Expires in ${Math.floor(data.transaction.timeout / 60)} minutes
+                  </p>
+                </div>
+                <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.5rem;">
+                  Your balance will be credited after <strong>${data.transaction.confirms_needed} network confirmations</strong>
+                </p>
+                <a href="${data.transaction.status_url}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #3b82f6; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; margin-bottom: 1rem; transition: background 0.2s; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                  🔍 Check Status on CoinPayments
+                </a>
+                <button onclick="this.closest('div').parentElement.remove()" style="display: block; width: 100%; background: #8b5cf6; color: white; padding: 0.875rem; border-radius: 0.75rem; border: none; cursor: pointer; font-weight: 600; font-size: 1rem; transition: background 0.2s; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3);" onmouseover="this.style.background='#7c3aed'" onmouseout="this.style.background='#8b5cf6'">
+                  Close
+                </button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(modal);
+        }
+    } catch (error: any) {
+      console.error('USDT Deposit error:', error);
+      alert('Failed to initiate deposit: ' + error.message);
     } finally {
       setIsProcessing(false);
     }
@@ -385,20 +463,32 @@ export default function WalletPage() {
                     </div>
                   </div>
                 )}
+                {commissionSettings && depositCurrency === 'USDT' && !commissionSettings.usdt_wallet_enabled && (
+                  <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center">
+                      <i className="ri-alert-line text-yellow-600 text-xl mr-3"></i>
+                      <div>
+                        <h4 className="font-semibold text-yellow-900">USDT Wallet Maintenance</h4>
+                        <p className="text-sm text-yellow-800">The USDT wallet is currently under maintenance. Please try again later.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-3">Currency</label>
                   <div className="flex gap-3">
-                    {['INR', 'USD'].map((curr) => {
+                    {['INR', 'USD', 'USDT'].map((curr) => {
                       const isDisabled = commissionSettings && 
                         ((curr === 'INR' && !commissionSettings.inr_wallet_enabled) ||
-                        (curr === 'USD' && !commissionSettings.usd_wallet_enabled));
+                        (curr === 'USD' && !commissionSettings.usd_wallet_enabled) ||
+                        (curr === 'USDT' && !commissionSettings.usdt_wallet_enabled));
                       return (
                         <button
                           key={curr}
                           onClick={() => {
                             if (!isDisabled) {
-                              setDepositCurrency(curr as 'INR' | 'USD');
+                              setDepositCurrency(curr as 'INR' | 'USD' | 'USDT');
                               setDepositAmount('');
                             }
                           }}
@@ -474,7 +564,7 @@ export default function WalletPage() {
                       {isProcessing ? 'Processing...' : 'Proceed to Razorpay'}
                     </button>
                   </form>
-                ) : (
+                ) : depositCurrency === 'USD' ? (
                   <form onSubmit={handleDepositUSD} className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Amount ($)</label>
@@ -520,6 +610,52 @@ export default function WalletPage() {
                       {isProcessing ? 'Processing...' : 'Proceed to PayPal'}
                     </button>
                   </form>
+                ) : (
+                  <form onSubmit={handleDepositUSDT} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Amount (USDT)</label>
+                      <input
+                        type="number"
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value)}
+                        placeholder="Enter amount"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        min="0.01"
+                        step="0.01"
+                        disabled={!!(commissionSettings && !commissionSettings.usdt_wallet_enabled)}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Minimum: {commissionSettings?.min_deposit_usdt || '2'} USDT (TRC20)</p>
+                    </div>
+
+                    {/* Commission Info */}
+                    {commissionSettings && commissionSettings.commission_on_deposits && depositAmount && (
+                      <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <p className="text-sm text-gray-600 mb-2">Commission Details:</p>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span>Deposit Amount:</span>
+                            <span className="font-semibold">{parseFloat(depositAmount).toFixed(2)} USDT</span>
+                          </div>
+                          <div className="flex justify-between text-orange-600">
+                            <span>Commission ({commissionSettings.commission_percentage}%):</span>
+                            <span className="font-semibold">+{(parseFloat(depositAmount) * parseFloat(commissionSettings.commission_percentage) / 100).toFixed(2)} USDT</span>
+                          </div>
+                          <div className="border-t border-orange-200 pt-1 mt-1 flex justify-between font-semibold">
+                            <span>You Send:</span>
+                            <span className="text-orange-700">{(parseFloat(depositAmount) * (1 + parseFloat(commissionSettings.commission_percentage) / 100)).toFixed(2)} USDT</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={isProcessing || !!(commissionSettings && !commissionSettings.usdt_wallet_enabled)}
+                      className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
+                    >
+                      {isProcessing ? 'Processing...' : 'Generate Deposit Address'}
+                    </button>
+                  </form>
                 )}
 
                 <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -527,6 +663,7 @@ export default function WalletPage() {
                   <ul className="text-sm text-blue-800 space-y-1">
                     <li>💳 <strong>INR:</strong> Razorpay (Credit/Debit Card, UPI, Wallet)</li>
                     <li>💳 <strong>USD:</strong> PayPal (All payment methods)</li>
+                    <li>🔗 <strong>USDT:</strong> TRC20 Network (Crypto wallet required)</li>
                   </ul>
                 </div>
               </div>
@@ -535,15 +672,107 @@ export default function WalletPage() {
             {/* Withdraw Tab */}
             {activeTab === 'withdraw' && (
               <div className="max-w-2xl">
-                <p className="text-sm text-gray-600 mb-4">Withdrawal requests are processed within 2-3 business days</p>
+                <p className="text-sm text-gray-600 mb-4">Withdrawal requests are processed within 24-48 hours</p>
 
-                <form className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                      <option>INR</option>
-                      <option>USD</option>
-                      <option>USDT</option>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Currency</label>
+                  <div className="flex gap-3">
+                    {['INR', 'USD', 'USDT'].map((curr) => (
+                      <button
+                        key={curr}
+                        onClick={() => {
+                          setWithdrawCurrency(curr as 'INR' | 'USD' | 'USDT');
+                          setWithdrawAmount('');
+                          setTrc20Address('');
+                        }}
+                        type="button"
+                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                          withdrawCurrency === curr
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {curr}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {withdrawCurrency === 'USDT' ? (
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!withdrawAmount || !trc20Address) {
+                      alert('Please fill in all fields');
+                      return;
+                    }
+                    if (!firebaseUser) {
+                      alert('Please log in to continue');
+                      return;
+                    }
+                    setIsProcessing(true);
+                    try {
+                      const res = await makeAuthenticatedRequest(firebaseUser, '/api/wallet/withdraw-usdt', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          amount: parseFloat(withdrawAmount),
+                          address: trc20Address,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                        alert('Withdrawal request submitted successfully!');
+                        window.location.reload();
+                      } else {
+                        alert(data.error || 'Failed to submit withdrawal');
+                      }
+                    } catch (error: any) {
+                      alert('Failed to submit withdrawal: ' + error.message);
+                    } finally {
+                      setIsProcessing(false);
+                    }
+                  }} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Amount (USDT)</label>
+                      <input
+                        type="number"
+                        value={withdrawAmount}
+                        onChange={(e) => setWithdrawAmount(e.target.value)}
+                        placeholder="Enter amount"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        min="0.01"
+                        step="0.01"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Available: {parseFloat(balance.usdt).toFixed(2)} USDT</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">TRC20 Address</label>
+                      <input
+                        type="text"
+                        value={trc20Address}
+                        onChange={(e) => setTrc20Address(e.target.value)}
+                        placeholder="T..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Enter your TRON TRC20 wallet address</p>
+                    </div>
+
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        ⚠️ <strong>Important:</strong> Double-check your TRC20 address. Withdrawals to wrong addresses cannot be reversed.
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isProcessing}
+                      className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium"
+                    >
+                      {isProcessing ? 'Processing...' : 'Request Withdrawal'}
+                    </button>
+                  </form>
+                ) : (
+                  <form className="space-y-4">
                     </select>
                   </div>
 
